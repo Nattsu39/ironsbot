@@ -12,7 +12,6 @@ dependencies = [
     "nonebot-plugin-htmlkit>=0.1.0rc5",
     "hishel[httpx]>=1.1.9",
     "nonebot-plugin-apscheduler>=0.5.0",
-    "nonebot-plugin-treehelp>=0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -32,7 +31,6 @@ nonebot-adapter-onebot = [
 "@local" = []
 nonebot-plugin-htmlkit = ["nonebot_plugin_htmlkit"]
 nonebot-plugin-apscheduler = ["nonebot_plugin_apscheduler"]
-nonebot-plugin-treehelp = ["nonebot_plugin_treehelp"]
 [tool.ruff]
 line-length = 88
 target-version = "py310"
