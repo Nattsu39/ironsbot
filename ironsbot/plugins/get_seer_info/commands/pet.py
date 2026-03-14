@@ -19,7 +19,7 @@ from ..prompt import (
 from ..render import render_pet_info
 
 pet_image_matcher = matcher_group.on_message(
-    rule=startswith_or_endswith("立绘") & no_reply()
+    rule=startswith_or_endswith(("立绘", "皮肤", "查询立绘")) & no_reply()
 )
 
 
