@@ -16,6 +16,6 @@ ELEMENT_TYPE_IMAGE_URL_TEMPLATE = "https://newseer.61.com/web/PetType/{}.png"
 ElementTypeImageGetter = GetImage(ELEMENT_TYPE_IMAGE_URL_TEMPLATE)
 ElementTypeImage = Depends(ElementTypeImageGetter)
 
-PREVIEW_IMAGE_URL_TEMPLATE = "https://raw.githubusercontent.com/WhY15w/seer-unity-preview-img-dumper/refs/heads/main/img/preview.png"
+PREVIEW_IMAGE_URL_TEMPLATE = "https://cnb.cool/HurryWang/seer-unity-preview-img-dumper-cnb/-/git/raw/master/img/preview.png"
 PreviewImageGetter = GetImage(PREVIEW_IMAGE_URL_TEMPLATE)
 PreviewImage = Depends(PreviewImageGetter)
