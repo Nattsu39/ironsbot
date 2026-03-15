@@ -5,7 +5,7 @@ from nonebot import require
 from nonebot_plugin_htmlkit import template_to_pic
 from seerapi_models import GlossaryEntryORM, PetORM, SkillInPetORM, SoulmarkORM
 
-from ironsbot.utils.soulmark_parser import SoulmarkDescParser
+from ironsbot.utils.analyze_parser import AnalyzeDescParser
 
 require(name="nonebot_plugin_htmlkit")
 
@@ -54,9 +54,20 @@ class SoulmarkDict(TypedDict):
     glossaries: list[GlossaryDict]
 
 
+ANALYZE_DESC_STYLES = {
+    "#f35555": lambda t: f'<b style="color:#60e0ff">{t}</b>',
+}
+
+
 def _extract_skill(skill_in_pet: SkillInPetORM) -> list[SkillDict]:
     skill = skill_in_pet.skill
-    effects = [{"id": e.effect_id, "info": e.info} for e in skill.skill_effect]
+    effects = [
+        {
+            "id": e.effect_id,
+            "info": AnalyzeDescParser(e.analyze_info).to_html(ANALYZE_DESC_STYLES),
+        }
+        for e in skill.skill_effect
+    ]
     skill_activation_item = (
         skill_in_pet.skill_activation_item.name
         if skill_in_pet.skill_activation_item
@@ -102,12 +113,8 @@ def _extract_soulmark(
     sm: SoulmarkORM, glossaries: list[GlossaryEntryORM]
 ) -> SoulmarkDict:
     tags = [t.name for t in sm.tag] if sm.tag else []
-    desc_parser = SoulmarkDescParser(sm.analyze_desc or sm.desc)
-    desc = desc_parser.to_html(
-        {
-            "#f35555": lambda t: f'<b style="color:#60e0ff">{t}</b>',
-        }
-    )
+    desc_parser = AnalyzeDescParser(sm.analyze_desc or sm.desc)
+    desc = desc_parser.to_html(ANALYZE_DESC_STYLES)
     return {
         "desc": desc,
         "intensified": sm.intensified,
