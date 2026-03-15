@@ -3,7 +3,14 @@ from collections.abc import Callable
 from typing import Annotated, Any, Generic, TypeVar
 
 from nonebot.params import Depends
-from seerapi_models import MintmarkClassCategoryORM, MintmarkORM, PetORM, PetSkinORM
+from seerapi_models import (
+    GemCategoryORM,
+    GemORM,
+    MintmarkClassCategoryORM,
+    MintmarkORM,
+    PetORM,
+    PetSkinORM,
+)
 from sqlalchemy import func
 from sqlmodel import SQLModel, col, select
 
@@ -113,3 +120,17 @@ PetSkinDataGetter = GetData(PetSkinORM)
 
 def GetPetSkinData() -> Any:
     return Depends(GetData(PetSkinORM))
+
+
+GemDataGetter = GetData(GemORM)
+
+
+def GetGemData() -> Any:
+    return Depends(GetData(GemORM))
+
+
+GemCategoryDataGetter = GetData(GemCategoryORM)
+
+
+def GetGemCategoryData() -> Any:
+    return Depends(GetData(GemCategoryORM))
