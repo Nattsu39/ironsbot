@@ -3,9 +3,13 @@ from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
-from seerapi_models import MintmarkClassCategoryORM, MintmarkORM
+from seerapi_models import GemCategoryORM, MintmarkClassCategoryORM, MintmarkORM
 from seerapi_models.mintmark import AbilityPartORM, UniversalPartORM
 
+from ironsbot.plugins.get_seer_info.depends.db import (
+    GemCategoryDataGetter,
+    GetGemCategoryData,
+)
 from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import (
@@ -113,10 +117,65 @@ async def build_mintmark_message(mintmark: MintmarkORM) -> MessageFactory:
     return msg
 
 
-GOT_KEY = "mintmark"
-mintmark_matcher.got(GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
+MINTMARK_GOT_KEY = "mintmark"
+mintmark_matcher.got(MINTMARK_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
     create_prompt_got_handler(
-        GOT_KEY,
+        MINTMARK_GOT_KEY,
         simple_prompt_resolver(MintmarkDataGetter, build_mintmark_message, "刻印"),
+    )
+)
+
+
+gem_matcher = matcher_group.on_message(rule=startswith_or_endswith("宝石") & no_reply())
+
+
+@gem_matcher.handle()
+async def handle_gem(
+    matcher: Matcher,
+    state: T_State,
+    bot: Bot,
+    categories: list[GemCategoryORM] = GetGemCategoryData(),
+) -> None:
+    if not categories:
+        raise FinishedException
+
+    if len(categories) == 1:
+        msg = await build_gem_message(categories[0])
+        await msg.finish()
+
+    elif len(categories) > PROMPT_MAX_ITEMS:
+        await matcher.finish(f"重名超过{PROMPT_MAX_ITEMS}个，请重新检索关键词！")
+
+    prompt = Prompt(
+        title="请问你想查询的宝石是……",
+        items=[
+            PromptItem(
+                name=category.name,
+                desc=f"{category.generation_id}代",
+                value=category.id,
+            )
+            for category in categories
+        ],
+    )
+    state[PROMPT_STATE_KEY] = prompt
+    state["prompt_message"] = await prompt.build_message().build(bot)
+
+
+async def build_gem_message(category: GemCategoryORM) -> MessageFactory:
+    msg = MessageFactory()
+    msg += f"💎以下是{category.name}系列信息：\n"
+    gem_info_list = []
+    for gem in category.gem:
+        effect = " | ".join(f"{effect.info}" for effect in gem.skill_effect_in_use)
+        gem_info_list.append(f"【Lv.{gem.level}】 {effect}")
+    msg += "\n".join(gem_info_list)
+    return msg
+
+
+GEM_GOT_KEY = "gem"
+gem_matcher.got(GEM_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
+    create_prompt_got_handler(
+        GEM_GOT_KEY,
+        simple_prompt_resolver(GemCategoryDataGetter, build_gem_message, "宝石"),
     )
 )
