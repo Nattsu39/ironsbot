@@ -16,35 +16,37 @@ class StartswithOrEndswithRule:
     并设置 BOT_COMMAND_ARG_KEY 为去除前缀/后缀后的文本。
     """
 
-    __slots__ = ("ignorecase", "prefix", "suffix")
+    __slots__ = ("ignorecase", "prefixes", "suffixes")
 
     def __init__(
         self,
-        prefix: tuple[str, ...],
-        suffix: tuple[str, ...] | None = None,
+        prefixes: tuple[str, ...],
+        suffixes: tuple[str, ...],
         ignorecase: bool = False,
     ) -> None:
-        self.prefix = prefix
-        self.suffix = suffix if suffix is not None else prefix
+        self.prefixes = prefixes
+        self.suffixes = suffixes
         self.ignorecase = ignorecase
 
     def __repr__(self) -> str:
         return (
             f"StartswithOrEndswith("
-            f"prefix={self.prefix}, suffix={self.suffix}, "
+            f"prefixes={self.prefixes}, suffixes={self.suffixes}, "
             f"ignorecase={self.ignorecase})"
         )
 
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, StartswithOrEndswithRule)
-            and frozenset(self.prefix) == frozenset(other.prefix)
-            and frozenset(self.suffix) == frozenset(other.suffix)
+            and frozenset(self.prefixes) == frozenset(other.prefixes)
+            and frozenset(self.suffixes) == frozenset(other.suffixes)
             and self.ignorecase == other.ignorecase
         )
 
     def __hash__(self) -> int:
-        return hash((frozenset(self.prefix), frozenset(self.suffix), self.ignorecase))
+        return hash(
+            (frozenset(self.prefixes), frozenset(self.suffixes), self.ignorecase)
+        )
 
     async def __call__(self, event: Event, state: T_State) -> bool:
         try:
@@ -55,12 +57,12 @@ class StartswithOrEndswithRule:
         flags = re.IGNORECASE if self.ignorecase else 0
 
         sw = re.match(
-            f"^(?:{'|'.join(re.escape(p) for p in self.prefix)})",
+            f"^(?:{'|'.join(re.escape(p) for p in self.prefixes)})",
             text,
             flags,
         )
         ew = re.search(
-            f"(?:{'|'.join(re.escape(s) for s in self.suffix)})$",
+            f"(?:{'|'.join(re.escape(s) for s in self.suffixes)})$",
             text,
             flags,
         )
@@ -77,22 +79,24 @@ class StartswithOrEndswithRule:
 
 
 def startswith_or_endswith(
-    prefix: str | tuple[str, ...],
-    suffix: str | tuple[str, ...] | None = None,
+    prefixes: str | tuple[str, ...],
+    suffixes: str | tuple[str, ...] | None = None,
     ignorecase: bool = True,
 ) -> Rule:
     """匹配消息开头或结尾为指定字符串的规则。
 
     Args:
-        prefix: 前缀或前缀元组
-        suffix: 后缀或后缀元组，为 None 时复用 prefix
+        prefixes: 前缀或前缀元组
+        suffixes: 后缀或后缀元组，为 None 时复用 prefixes
         ignorecase: 是否忽略大小写
     """
-    if isinstance(prefix, str):
-        prefix = (prefix,)
-    if isinstance(suffix, str):
-        suffix = (suffix,)
-    return Rule(StartswithOrEndswithRule(prefix, suffix, ignorecase))
+    if suffixes is None:
+        suffixes = prefixes
+    if isinstance(prefixes, str):
+        prefixes = (prefixes,)
+    if isinstance(suffixes, str):
+        suffixes = (suffixes,)
+    return Rule(StartswithOrEndswithRule(prefixes, suffixes, ignorecase))
 
 
 class NoReply:

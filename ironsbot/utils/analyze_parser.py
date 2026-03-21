@@ -1,7 +1,7 @@
-"""赛尔号Analyze魂印/技能描述标签解析器
+"""赛尔号魂印/技能描述标签解析器
 
-将包含 ``[color=...]`` 和 ``[sprite name=...]`` 标签的描述文本
-解析为结构化数据。无任何框架依赖，可独立使用和测试。
+将包含 ``[color=...]`` 和 ``[sprite name=...]`` 标签的Analyze描述文本
+解析为结构化数据。
 """
 
 import html
@@ -15,23 +15,27 @@ _TAG_RE = re.compile(
     r"|\[sprite name=(\w+)\]"
     r"|([^\[]+|\[)"
 )
+_ID_SUFFIX_RE = re.compile(r"\((\d+)\)$")
 
 
-@dataclass
+@dataclass(slots=True)
 class TextSegment:
     """一段带有可选颜色标记的文本片段
 
     ``colors`` 保存该片段所处的完整颜色栈快照（外层在前，内层在后），
     同一个 ``[/color]`` 闭合多个嵌套标签时，文本会同时关联所有活跃颜色。
+
+    特别地，当描述中显式指定了片段词条 ID 时，该对象将携带该 ID。
     """
 
     text: str
     colors: tuple[str, ...] = ()
+    id: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class DescLine:
-    """魂印描述中的一行"""
+    """描述中的一行"""
 
     sprite: str | None = None
     indent: int = 0
@@ -97,10 +101,23 @@ def _parse_desc_line(raw: str) -> DescLine:
             last_batch = current_opens
             current_opens = 0
             cur = tuple(set(color_stack))
-            if line.segments and line.segments[-1].colors == cur:
-                line.segments[-1].text += m.group(3)
+            text = m.group(3)
+            seg_id: int | None = None
+            if id_match := _ID_SUFFIX_RE.search(text):
+                seg_id = int(id_match.group(1))
+                text = text[: id_match.start()]
+            can_merge = (
+                line.segments
+                and line.segments[-1].colors == cur
+                and line.segments[-1].id is None
+                and seg_id is None
+            )
+            if can_merge:
+                line.segments[-1].text += text
             else:
-                line.segments.append(TextSegment(text=m.group(3), colors=cur))
+                line.segments.append(
+                    TextSegment(text=text, colors=cur, id=seg_id)
+                )
 
     return line
 
@@ -129,6 +146,11 @@ class AnalyzeDescParser:
     def segments(self) -> list[TextSegment]:
         """描述中出现的所有文本片段"""
         return [seg for line in self.lines for seg in line.segments]
+
+    @property
+    def segments_with_id(self) -> set[int]:
+        """描述中出现的所有词条 ID"""
+        return {seg.id for seg in self.segments if seg.id}
 
     @property
     def colors(self) -> set[str]:

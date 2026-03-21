@@ -1,10 +1,12 @@
+from collections.abc import Iterable
+
 from nonebot.adapters import Bot, MessageTemplate
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
 from seerapi_models import GemCategoryORM, MintmarkClassCategoryORM, MintmarkORM
-from seerapi_models.mintmark import AbilityPartORM, UniversalPartORM
+from seerapi_models.mintmark import AbilityPartORM, SkillPartORM, UniversalPartORM
 
 from ironsbot.plugins.get_seer_info.depends.db import (
     GemCategoryDataGetter,
@@ -35,14 +37,15 @@ mintmark_matcher = matcher_group.on_message(
 PROMPT_MAX_ITEMS = 20
 
 
-def _deduplicate(mintmarks: list[MintmarkORM]) -> list[MintmarkORM]:
+def _deduplicate(mintmarks: Iterable[MintmarkORM]) -> tuple[MintmarkORM, ...]:
     seen_ids = set()
     result = []
     for mintmark in mintmarks:
         if mintmark.id not in seen_ids:
             result.append(mintmark)
             seen_ids.add(mintmark.id)
-    return result
+
+    return tuple(result)
 
 
 @mintmark_matcher.handle()
@@ -50,10 +53,11 @@ async def handle_mintmark(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
-    mintmarks: list[MintmarkORM] = GetMintmarkData(),
-    classes: list[MintmarkClassCategoryORM] = GetMintmarkClassData(),
+    mintmarks: tuple[MintmarkORM, ...] = GetMintmarkData(),
+    classes: tuple[MintmarkClassCategoryORM, ...] = GetMintmarkClassData(),
 ) -> None:
-    mintmarks += [part.mintmark for c in classes for part in c.mintmark]
+
+    mintmarks = mintmarks + tuple(part.mintmark for c in classes for part in c.mintmark)
     mintmarks = _deduplicate(mintmarks)
 
     if not mintmarks:
@@ -87,25 +91,34 @@ def _fmt_attr(label: str, value: float, col_width: int = 8) -> str:
 async def build_mintmark_message(mintmark: MintmarkORM) -> MessageFactory:
     msg = MessageFactory()
     part = mintmark.ability_part or mintmark.skill_part or mintmark.universal_part
-    msg += f"【{mintmark.name}】\n"
-    image = await MintmarkBodyImageGetter.get(str(mintmark.id))
-    msg += image
-    msg += f"⭕🆔：{mintmark.id}\n"
-    if isinstance(part, UniversalPartORM):
-        class_name = part.mintmark_class.name if part.mintmark_class else "无"
-        msg += f"⭕系列：{class_name} \n"
-
+    msg += f"💮【{mintmark.name}】\n"
+    msg += await MintmarkBodyImageGetter.get(str(mintmark.id))
+    msg += f"🆔：{mintmark.id}\n"
+    if mintmark.pet:
+        if len(mintmark.pet) > 1:
+            msg += "绑定精灵：\n"
+            for pet in mintmark.pet:
+                msg += f" ↳ {pet.name}（{pet.id}）\n"
+        else:
+            msg += f"绑定精灵：{mintmark.pet[0].name}（{mintmark.pet[0].id}）\n"
     if isinstance(part, AbilityPartORM):
         attr = part.max_attr_value.to_model()
-    elif isinstance(part, (UniversalPartORM)):
+    elif isinstance(part, UniversalPartORM):
+        class_name = part.mintmark_class.name if part.mintmark_class else "无"
+        msg += f"系列：{class_name} \n"
         attr = part.max_attr_value.to_model()
         if part.extra_attr_value:
             attr = attr + part.extra_attr_value.to_model()
+    elif isinstance(part, SkillPartORM):
+        skills = " | ".join(f"{skill.name}（{skill.id}）" for skill in mintmark.skill)
+        msg += f"技能：{skills}\n"
+        msg += f"效果：{mintmark.desc}"
+        return msg
     else:
-        return msg + mintmark.desc
+        raise TypeError(f"未知的刻印类型: {type(part)}")
 
     attr = attr.round()
-    msg += f"⭕数值：(总和{attr.total})\n"
+    msg += f"数值：(总和{attr.total})\n"
     msg += (
         f"{_fmt_attr('攻击', attr.atk)}"
         f"{_fmt_attr('防御', attr.def_)}"
@@ -134,7 +147,7 @@ async def handle_gem(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
-    categories: list[GemCategoryORM] = GetGemCategoryData(),
+    categories: tuple[GemCategoryORM, ...] = GetGemCategoryData(),
 ) -> None:
     if not categories:
         raise FinishedException

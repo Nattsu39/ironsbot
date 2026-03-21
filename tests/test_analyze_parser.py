@@ -225,3 +225,70 @@ class TestToHtml:
         result = p.lines[0].to_html(styles)
         assert "体力&gt;50%时" in result
         assert "<em>攻击&lt;防御</em>" in result
+
+
+DESC_WITH_ID = (
+    "[sprite name=dot1][color=#52a5f2]首次[/color]"
+    "[color=#52a5f2]出战(491)[/color]"
+    "[color=#57c975]登场时[/color]获得4层[color=#f35555]自然祝福[/color]，"
+    "[color=#52a5f2]之后[/color]每次[color=#57c975]登场[/color]时获得2层自然祝福"
+    "|[sprite name=dot1][color=#57c975]战斗阶段结束时[/color]，若"
+    "[color=#52a5f2]当回合(412)[/color]自身使用了技能则消耗1层"
+    "[color=#f35555]自然祝福[/color]，若"
+    "[color=#52a5f2]当回合(412)[/color]自身未使用技能则获得1层"
+    "[color=#f35555]自然祝福[/color]"
+)
+
+
+class TestSegmentId:
+    def test_id_extracted(self):
+        """'出战(491)' 应提取 id=491"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        seg = next(s for s in parser.segments if s.text == "出战")
+        assert seg.id == 491
+
+    def test_id_stripped_from_text(self):
+        """提取 ID 后文本不应包含 '(491)'"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        seg = next(s for s in parser.segments if s.id == 491)
+        assert "(491)" not in seg.text
+        assert seg.text == "出战"
+
+    def test_multiple_same_id(self):
+        """同一描述中多次出现的相同 ID 应分别提取"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        segs_412 = [s for s in parser.segments if s.id == 412]
+        assert len(segs_412) == 2
+        assert all(s.text == "当回合" for s in segs_412)
+
+    def test_segments_with_id_property(self):
+        """segments_with_id 应返回所有出现的 ID"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        assert parser.segments_with_id == {491, 412}
+
+    def test_no_id_segments_are_none(self):
+        """无 ID 的片段 id 应为 None"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        seg = next(s for s in parser.segments if s.text == "首次")
+        assert seg.id is None
+
+    def test_plain_text_excludes_id(self):
+        """纯文本输出不应包含括号内的 ID"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        plain = parser.lines[0].plain_text
+        assert "(491)" not in plain
+        assert "出战" in plain
+
+    def test_html_excludes_id(self):
+        """HTML 输出不应包含括号内的 ID"""
+        parser = AnalyzeDescParser(DESC_WITH_ID)
+        styles = {"#52a5f2": lambda t: f"<b>{t}</b>"}
+        result = parser.lines[0].to_html(styles)
+        assert "(491)" not in result
+        assert "<b>出战</b>" in result
+
+    def test_full_width_parens_not_treated_as_id(self):
+        """全角括号（数字）不应被当作 ID 提取"""
+        parser = AnalyzeDescParser(DESC)
+        plain = parser.to_plain_text()
+        assert "（boss无效）" in plain

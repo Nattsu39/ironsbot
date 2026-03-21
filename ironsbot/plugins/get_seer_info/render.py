@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
@@ -9,7 +10,7 @@ from ironsbot.utils.analyze_parser import AnalyzeDescParser
 
 require(name="nonebot_plugin_htmlkit")
 
-TEMPLATES_PATH = Path(__file__).parent / "templates"
+TEMPLATES_PATH = Path(__file__).parent / "templates" / "pet_info"
 PET_IMAGE_URL = "https://newseer.61.com/web/monster/body/{}.png"
 PET_HEAD_IMAGE_URL = "https://newseer.61.com/web/monster/head/{}.png"
 
@@ -38,6 +39,7 @@ class SkillDict(TypedDict):
     effects: list[dict[str, Any]]
     activation_item: str | None
     friend_bonus: bool
+    hide_effect_desc: str | None
 
 
 class GlossaryDict(TypedDict):
@@ -54,7 +56,7 @@ class SoulmarkDict(TypedDict):
     glossaries: list[GlossaryDict]
 
 
-ANALYZE_DESC_STYLES = {
+ANALYZE_DESC_STYLES: dict[str, Callable[..., str]] = {
     "#f35555": lambda t: f'<b style="color:#60e0ff">{t}</b>',
 }
 
@@ -73,6 +75,7 @@ def _extract_skill(skill_in_pet: SkillInPetORM) -> list[SkillDict]:
         if skill_in_pet.skill_activation_item
         else None
     )
+    hide_effect_desc = skill.hide_effect.description if skill.hide_effect else None
     result = SkillDict(
         id=skill.id,
         name=skill.name,
@@ -94,6 +97,7 @@ def _extract_skill(skill_in_pet: SkillInPetORM) -> list[SkillDict]:
         effects=effects,
         activation_item=skill_activation_item,
         friend_bonus=False,
+        hide_effect_desc=hide_effect_desc,
     )
     if len(skill.friend_skill_effect) > 0:
         friend_skill: SkillDict = {
@@ -121,7 +125,9 @@ def _extract_soulmark(
         "is_adv": sm.is_adv,
         "pve_effective": sm.pve_effective,
         "tags": tags,
-        "glossaries": [{"name": g.name, "desc": g.desc} for g in glossaries],
+        "glossaries": [
+            {"name": g.name, "desc": g.desc} for g in glossaries if g.name in desc
+        ],
     }
 
 
@@ -158,7 +164,7 @@ async def render_pet_info(pet: PetORM) -> bytes:
 
     return await template_to_pic(
         template_path=TEMPLATES_PATH,
-        template_name="pet_info.html",
+        template_name="template.html",
         templates={
             "pet_name": pet.name,
             "pet_id": pet.id,

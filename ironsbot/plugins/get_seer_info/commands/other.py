@@ -8,7 +8,7 @@ from sqlmodel import select
 
 from ironsbot.utils.rule import no_reply
 
-from ..depends import Session
+from ..depends import SeerAPISession
 from ..depends.image import PreviewImageGetter
 from ..group import matcher_group
 
@@ -31,11 +31,15 @@ DATA_VERSION_MESSAGE_TEMPLATE = MessageTemplate("数据更新时间：{time}")
 
 
 @data_version_matcher.handle()
-async def handle_data_version(matcher: Matcher, session: Session) -> NoReturn:
+async def handle_data_version(matcher: Matcher, session: SeerAPISession) -> NoReturn:
     obj = session.exec(select(ApiMetadataORM)).first()
     if not obj:
         await matcher.finish("❌暂无数据版本信息(这是一个bug，请反馈给开发者)")
     dt = obj.generate_time
+    # 为确保时区转换生效，需先判断dt是否带有tzinfo（即是否为"aware" datetime）；否则先转为UTC再转换
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        # 假设dt原本为UTC时间（无tzinfo），先加上UTC tzinfo
+        dt = dt.replace(tzinfo=timezone.utc)
     dt_local = dt.astimezone(timezone(timedelta(hours=8)))
-    time = dt_local.strftime("%Y-%m-%d %H:%M:%S")
-    await matcher.finish(DATA_VERSION_MESSAGE_TEMPLATE.format(time=time))
+    time_str = dt_local.strftime("%Y-%m-%d %H:%M:%S")
+    await matcher.finish(DATA_VERSION_MESSAGE_TEMPLATE.format(time=time_str))

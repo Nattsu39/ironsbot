@@ -45,21 +45,22 @@ services:
   ironsbot:
     image: ghcr.io/nattsu39/ironsbot:latest
     environment:
-      # === 表情包插件必填配置，当缺少时相关命令将被禁用 ===
-      MEMES_CNB_TOKEN: "你的CNB令牌"
-      
-      # === 表情包插件可选配置 ===
-      # MEMES_CNB_REPO: "Nattsu39/tudou"
-      
-      # === 赛尔号数据查询插件必填配置 ===
-      DATABASE_URL: "sqlite:///seerapi-data.sqlite"
+      # === 赛尔号数据查询插件，可选择远程同步模式或本地回退模式 ===
+      # 远程同步模式
+      SEERAPI_SYNC_URL: "https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite"
+      ALIAS_SYNC_URL: "https://github.com/SeerAPI/api-data/releases/download/latest/aliases-data.sqlite"
 
-      # === db_sync 插件必填配置 ===
-      DB_SYNC_URL: "https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite"
-      # === db_sync 插件可选配置 ===
-      # DB_SYNC_INTERVAL_MINUTES: "60"
-      # DB_SYNC_PATH: "seerapi-data.sqlite"
-      # DB_SYNC_ON_STARTUP: "true"
+      # 本地回退模式
+      SEERAPI_LOCAL_PATH: "seerapi-data.sqlite"
+      ALIAS_LOCAL_PATH: "aliases-data.sqlite"
+
+      # --- 可选配置（以下均为默认值） ---
+      # SEERAPI_SYNC_INTERVAL_MINUTES: "60"  # 数据同步间隔（分钟）
+      # ALIAS_SYNC_INTERVAL_MINUTES: "60"
+
+      # === 表情包插件，当缺少时相关命令将被禁用 ===
+      # MEMES_CNB_TOKEN: "你的CNB令牌"
+      # MEMES_CNB_REPO: "Nattsu39/tudou"
 
       # === 机器人配置（必填） ===
       ONEBOT_ACCESS_TOKEN: "你的OneBot token" # 设置OneBot的访问令牌，用于NapCat连接机器人，注意不要泄露给他人
