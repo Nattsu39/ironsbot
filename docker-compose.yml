@@ -7,16 +7,5 @@ services:
       - "${PORT:-8080}:${PORT:-8080}"
     environment:
       ENVIRONMENT: prod
-      HOST: ${HOST:-0.0.0.0}
-      PORT: ${PORT:-8080}
-      SUPERUSERS: ${SUPERUSERS:-'[]'}
-      COMMAND_START: ${COMMAND_START:-'[""]'}
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///seerapi-data.sqlite}
-      DB_SYNC_URL: ${DB_SYNC_URL:-https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite}
-      DB_SYNC_INTERVAL_MINUTES: ${DB_SYNC_INTERVAL_MINUTES:-60}
-      DB_SYNC_PATH: ${DB_SYNC_PATH:-seerapi-data.sqlite}
-      DB_SYNC_ON_STARTUP: ${DB_SYNC_ON_STARTUP:-true}
-      MEMES_CNB_TOKEN: ${MEMES_CNB_TOKEN:-}
-      MEMES_CNB_REPO: ${MEMES_CNB_REPO:-}
 
     restart: always

@@ -11,7 +11,7 @@ from .db import (
     MintmarkDataGetter,
     PetDataGetter,
     PetSkinDataGetter,
-    Session,
+    SeerAPISession,
 )
 from .image import (
     MintmarkBodyImage,
@@ -37,5 +37,5 @@ __all__ = [
     "PetBodyImageGetter",
     "PetDataGetter",
     "PetSkinDataGetter",
-    "Session",
+    "SeerAPISession",
 ]

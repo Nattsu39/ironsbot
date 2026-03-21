@@ -6,13 +6,11 @@ from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
-from sqlmodel import SQLModel
+from seerapi_models.build_model import BaseResModel
 from typing_extensions import NamedTuple
 
-from ironsbot.plugins.get_seer_info.db import SQLModelSession
-
-from .depends import Session
-from .depends.db import GetData
+from .depends import SeerAPISession
+from .depends.db import Getter, SQLModelSession
 
 T = TypeVar("T")
 
@@ -21,6 +19,7 @@ class PromptItem(NamedTuple, Generic[T]):
     name: str
     desc: str
     value: T
+    is_sub_prompt: bool = False
 
 
 @dataclass
@@ -54,12 +53,15 @@ class Prompt(Generic[T]):
         msg = MessageFactory()
         msg += self.title
         for index, item in enumerate(self.items, start=1):
+            if item.is_sub_prompt:
+                msg += " ↳ "
             msg += f"{index}. {item.name}（{item.desc}）\n"
-        msg += "0. 退出"
+        msg += "\n💬 输入序号选择 · 输入 0 退出"
+
         return msg
 
 
-_M = TypeVar("_M", bound=SQLModel)
+_M = TypeVar("_M", bound=BaseResModel)
 
 PROMPT_STATE_KEY = "prompt"
 
@@ -67,7 +69,7 @@ PROMPT_STATE_KEY = "prompt"
 def create_prompt_got_handler(
     got_key: str,
     resolver: Callable[[Any, Matcher, SQLModelSession], Awaitable[None]],
-) -> Callable[[Matcher, T_State, Session], Awaitable[None]]:
+) -> Callable[[Matcher, T_State, SeerAPISession], Awaitable[None]]:
     """为 ``matcher.got()`` 创建处理 Prompt 选择的 handler。
 
     工厂负责 Prompt 选择的通用逻辑（解析输入、退出、查找值），
@@ -93,7 +95,7 @@ def create_prompt_got_handler(
     async def _handler(
         matcher: Matcher,
         state: T_State,
-        session: Session,
+        session: SeerAPISession,
     ) -> None:
         if PROMPT_STATE_KEY not in state:
             raise ValueError(f"Prompt not found in state: {state}")
@@ -117,7 +119,7 @@ def create_prompt_got_handler(
 
 
 def simple_prompt_resolver(
-    data_getter: GetData[_M],
+    data_getter: Getter[_M],
     message_builder: Callable[[_M], Awaitable[MessageFactory]],
     entity_name: str,
 ) -> Callable[..., Awaitable[None]]:

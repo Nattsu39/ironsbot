@@ -1,0 +1,30 @@
+from abc import ABC, abstractmethod
+
+from sqlalchemy.orm import declared_attr
+from sqlmodel import Field, SQLModel
+
+
+class BaseAliasORM(SQLModel, ABC):
+    name: str = Field(primary_key=True)
+    target_id: int = Field(primary_key=True)
+
+    @declared_attr  # pyright: ignore[reportArgumentType]
+    def __tablename__(cls) -> str:  # noqa: N805  # pyright: ignore[reportIncompatibleVariableOverride]
+        return cls.table_name()
+
+    @classmethod
+    @abstractmethod
+    def table_name(cls) -> str:
+        raise NotImplementedError
+
+
+class PetAliasORM(BaseAliasORM, table=True):
+    @classmethod
+    def table_name(cls) -> str:
+        return "pet_aliases"
+
+
+class GemAliasORM(BaseAliasORM, table=True):
+    @classmethod
+    def table_name(cls) -> str:
+        return "gem_aliases"

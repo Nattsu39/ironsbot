@@ -1,4 +1,5 @@
-import httpx
+from hishel.httpx import AsyncCacheClient
+from httpx import HTTPStatusError
 from nonebot.params import Depends
 from nonebot_plugin_saa import Image, MessageSegmentFactory, Text
 
@@ -6,7 +7,7 @@ from .parse_arg import parse_string_arg
 
 
 async def create_image_segment_from_url(url: str) -> Image:
-    async with httpx.AsyncClient() as client:
+    async with AsyncCacheClient() as client:
         response = await client.get(url)
         response.raise_for_status()
         return Image(response.content)
@@ -20,7 +21,7 @@ class GetImage:
         url = self.url_template.format(arg)
         try:
             return await create_image_segment_from_url(url)
-        except httpx.HTTPStatusError as e:
+        except HTTPStatusError as e:
             status_code = e.response.status_code
             reason_phrase = e.response.reason_phrase
             return Text(f"❌获取图片失败！原因：{status_code} {reason_phrase}")

@@ -19,11 +19,51 @@ from ..prompt import (
 from ..render import render_pet_info
 
 pet_image_matcher = matcher_group.on_message(
-    rule=startswith_or_endswith(("立绘", "皮肤", "查询立绘")) & no_reply()
+    rule=startswith_or_endswith(
+        prefixes=("立绘", "皮肤", "查询立绘"),
+    )
+    & no_reply()
 )
 
 
 PROMPT_MAX_ITEMS = 20
+
+
+def _create_prompt_items(
+    pets: tuple[PetORM, ...], skins: tuple[PetSkinORM, ...]
+) -> list[PromptItem[int]]:
+    id_set: set[int] = set()
+    prompt_items: list[PromptItem[int]] = []
+    for pet in pets:
+        if pet.id in id_set:
+            continue
+        id_set.add(pet.id)
+        prompt_items.append(PromptItem(name=pet.name, desc=str(pet.id), value=pet.id))
+        for skin in pet.skins:
+            if skin.resource_id in id_set:
+                continue
+            id_set.add(skin.resource_id)
+            prompt_items.append(
+                PromptItem(
+                    name=skin.name,
+                    desc=str(skin.resource_id),
+                    value=skin.resource_id,
+                    is_sub_prompt=True,
+                )
+            )
+
+    for skin in skins:
+        if skin.resource_id in id_set:
+            continue
+        id_set.add(skin.resource_id)
+        prompt_items.append(
+            PromptItem(
+                name=skin.name,
+                desc=f"所属精灵：{skin.pet.name}",
+                value=skin.resource_id,
+            )
+        )
+    return prompt_items
 
 
 @pet_image_matcher.handle()
@@ -31,19 +71,11 @@ async def handle_pet_image(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
-    pets: list[PetORM] = GetPetData(),
-    skins: list[PetSkinORM] = GetPetSkinData(),
+    pets: tuple[PetORM, ...] = GetPetData(),
+    skins: tuple[PetSkinORM, ...] = GetPetSkinData(),
 ) -> None:
     _name_set: set[str] = set()
-    items: list[PromptItem[int]] = [
-        PromptItem(name=pet.name, desc=str(pet.id), value=pet.id) for pet in pets
-    ]
-    items.extend(
-        PromptItem(
-            name=skin.name, desc=f"所属精灵：{skin.pet.name}", value=skin.resource_id
-        )
-        for skin in skins
-    )
+    items: list[PromptItem[int]] = _create_prompt_items(pets, skins)
 
     if not items:
         raise FinishedException
@@ -52,7 +84,7 @@ async def handle_pet_image(
         msg = await build_pet_image_message(items[0])
         await msg.finish()
 
-    if len(pets) > PROMPT_MAX_ITEMS:
+    if len(items) > PROMPT_MAX_ITEMS:
         await matcher.finish(f"重名超过{PROMPT_MAX_ITEMS}个，请重新检索关键词！")
 
     prompt = Prompt(
@@ -66,7 +98,7 @@ async def handle_pet_image(
 async def build_pet_image_message(args: PromptItem[int]) -> MessageFactory:
     image = await PetBodyImageGetter.get(str(args.value))
     msg = MessageFactory()
-    msg += f"💎{args.name}\n"
+    msg += f"💎【{args.name}】\n"
     msg += image
     return msg
 
@@ -85,7 +117,11 @@ pet_image_matcher.got(PET_IMAGE_GOT_KEY, prompt=MessageTemplate("{prompt_message
 # ============ 精灵信息卡 ============
 
 pet_info_matcher = matcher_group.on_message(
-    rule=startswith_or_endswith(("精灵", "查询精灵信息", "魂印", "技能")) & no_reply()
+    rule=startswith_or_endswith(
+        prefixes=("精灵", "查询精灵信息", "魂印", "技能"),
+        suffixes=("查询精灵信息", "魂印", "技能"),
+    )
+    & no_reply()
 )
 
 
@@ -94,8 +130,7 @@ async def handle_pet_info(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
-    pets: list[PetORM] = GetPetData(),
-    # aliases: list[PetORM] = GetPetData(),
+    pets: tuple[PetORM, ...] = GetPetData(),
 ) -> None:
     if not pets:
         raise FinishedException
