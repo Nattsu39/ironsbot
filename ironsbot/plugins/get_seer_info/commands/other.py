@@ -1,6 +1,8 @@
+import re
 from datetime import timedelta, timezone
 from typing import NoReturn
 
+import httpx
 from nonebot.adapters import Bot, MessageTemplate
 from nonebot.matcher import Matcher
 from seerapi_models import ApiMetadataORM
@@ -43,3 +45,49 @@ async def handle_data_version(matcher: Matcher, session: SeerAPISession) -> NoRe
     dt_local = dt.astimezone(timezone(timedelta(hours=8)))
     time_str = dt_local.strftime("%Y-%m-%d %H:%M:%S")
     await matcher.finish(DATA_VERSION_MESSAGE_TEMPLATE.format(time=time_str))
+
+
+async def fetch_server_notice_text() -> str | None:
+    """获取服务器停服维护公告文本，若没有则返回None，一般来说如果返回了文本则表示服务器正在维护"""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get("https://unity-notice.61.com/unity_notice/")
+        resp.raise_for_status()
+        data = resp.json()
+
+    for item in data:
+        if item["type"] == 3:
+            text = item["text"]
+            # 需要删除所有标签
+            text = re.sub(r"<[^>]*>", "", text)
+            return text.replace("\\n", "\n")
+    return None
+
+
+# async def notify_server_open() -> None:
+#     text = await fetch_server_notice_text()
+#     if not text:
+#         target = TargetQQGroup(group_id=494873951)
+#         await MessageFactory("赛尔号开服了！").send_to(target)
+#         scheduler.remove_job("notify_server_open")
+
+
+# scheduler.add_job(
+#     notify_server_open,
+#     "interval",
+#     minutes=1,
+#     id="notify_server_open",
+#     replace_existing=True,
+# )
+
+server_info_matcher = matcher_group.on_fullmatch(
+    ("开服查询", "开服了吗"), rule=no_reply()
+)
+
+
+@server_info_matcher.handle()
+async def handle_server_info(matcher: Matcher) -> NoReturn:
+    text = await fetch_server_notice_text()
+    if text:
+        await matcher.finish(text)
+
+    await matcher.finish("开服了哦~")
