@@ -13,6 +13,7 @@ from .db import (
     PetSkinDataGetter,
     SeerAPISession,
 )
+from .headless import GameClient
 from .image import (
     MintmarkBodyImage,
     MintmarkBodyImageGetter,
@@ -21,6 +22,7 @@ from .image import (
 )
 
 __all__ = [
+    "GameClient",
     "GemCategoryDataGetter",
     "GemDataGetter",
     "GetGemCategoryData",
