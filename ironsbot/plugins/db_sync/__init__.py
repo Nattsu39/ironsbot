@@ -69,6 +69,10 @@ def register_local_database(name: str, *, file_path: str) -> None:
         logger.warning(f"数据库 '{name}' 已注册，跳过重复注册")
         return
 
+    if not os.path.exists(file_path):
+        logger.warning(f"本地文件 '{file_path}' 不存在，跳过注册 {name}")
+        return
+
     db_manager.register(name)
     db_manager.load_from_file(name, file_path)
     _local_databases.add(name)

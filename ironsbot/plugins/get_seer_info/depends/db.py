@@ -1,10 +1,11 @@
 # ruff: noqa: N802
 
 import re
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import AsyncGenerator, Callable, Iterable
 from typing import Annotated, Any, Generic, Protocol, TypeVar
 
 from nonebot import logger, require
+from nonebot.matcher import Matcher
 from nonebot.params import Depends
 from seerapi_models import (
     GemCategoryORM,
@@ -15,6 +16,7 @@ from seerapi_models import (
     PetSkinORM,
 )
 from seerapi_models.build_model import BaseResModel
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session as SQLModelSession
 from sqlmodel import col, func, select
 
@@ -52,6 +54,7 @@ _register(
 )
 
 _T_Model = TypeVar("_T_Model", bound=BaseResModel)
+_T_Model_co = TypeVar("_T_Model_co", bound=BaseResModel, covariant=True)
 
 _IGNORED_CHARS = ".·・•‧∙⋅。—\u2013-_/ "
 _IGNORED_CHARS_PATTERN = re.compile(f"[{re.escape(_IGNORED_CHARS)}]")
@@ -71,9 +74,20 @@ def _col_strip_special(column: Any) -> Any:
 
 def _session_factory(
     db_name: str,
-) -> Callable[[], Generator[SQLModelSession, Any, None]]:
-    def _session_generator() -> Generator[SQLModelSession, Any, None]:
-        yield from db_manager.get_session(db_name)
+) -> Callable[..., AsyncGenerator[SQLModelSession, None]]:
+    async def _session_generator(
+        matcher: Matcher,
+    ) -> AsyncGenerator[SQLModelSession, None]:
+        gen = db_manager.get_session(db_name)
+        if gen is None:
+            await matcher.finish(
+                f"❌数据库 '{db_name}' 未注册，无法使用此命令\n"
+                "🔧请将命令和这条消息反馈给机器人维护者吧~"
+            )
+        try:
+            yield next(gen)
+        finally:
+            gen.close()
 
     return _session_generator
 
@@ -85,159 +99,172 @@ AllSessions = Annotated[
 ]
 
 
-class IdSelector(Protocol):
-    db_name: str
+class Resolver(Protocol[_T_Model_co]):
+    """从用户输入解析出匹配的模型对象。"""
 
-    def __call__(self, session: SQLModelSession, arg: str) -> set[int]: ...
+    def __call__(self, sessions: AllSessions, arg: str) -> Iterable[_T_Model_co]: ...
 
 
-class AliasSelector(IdSelector):
+class IdResolver(Generic[_T_Model]):
+    """当输入为纯数字时，按主键 ID 获取单个对象。"""
+
     __slots__ = ("db_name", "model")
 
-    def __init__(self, *, db_name: str, model: type[BaseAliasORM]) -> None:
-        self.db_name = db_name
+    def __init__(self, model: type[_T_Model], *, db_name: str = _SEERAPI_DB) -> None:
         self.model = model
+        self.db_name = db_name
 
     def __repr__(self) -> str:
-        return f"AliasSelector(db_name={self.db_name}, model={self.model.__name__})"
-
-    def __eq__(self, other: object) -> bool:
         return (
-            isinstance(other, AliasSelector)
-            and self.db_name == other.db_name
-            and self.model == other.model
+            f"IdResolver(model={self.model.resource_name()!r}, "
+            f"db_name={self.db_name!r})"
         )
 
-    def __hash__(self) -> int:
-        return hash((self.db_name, self.model))
-
-    def __call__(
-        self,
-        session: AliasSession,
-        arg: str = Depends(parse_string_arg),
-    ) -> set[int]:
-        stripped_arg = arg.strip()
-        statement = select(self.model).where(
-            _col_strip_special(col(self.model.name)).like(f"%{stripped_arg}%")
-        )
-        aliases = session.exec(statement).all()
-        return {alias.target_id for alias in aliases}
+    def __call__(self, sessions: AllSessions, arg: str) -> tuple[_T_Model] | tuple[()]:
+        if not arg.isdigit():
+            return ()
+        session = sessions.get(self.db_name)
+        if session is None:
+            logger.warning(f"{self!r}: 未找到数据库会话")
+            return ()
+        obj = session.get(self.model, int(arg))
+        return (obj,) if obj else ()
 
 
-class NameSelector(IdSelector):
+class NameResolver(Generic[_T_Model]):
+    """按名称列模糊搜索，直接返回完整模型对象。"""
+
     __slots__ = ("db_name", "model", "name_column")
 
     def __init__(
         self,
-        *,
-        db_name: str,
         model: type[_T_Model],
+        *,
+        db_name: str = _SEERAPI_DB,
         name_column: str = "name",
     ) -> None:
-        self.db_name = db_name
         if not hasattr(model, name_column):
             raise ValueError(
                 f"Model {model.resource_name()} has no {name_column} column"
             )
-
+        self.db_name = db_name
         self.model = model
         self.name_column = getattr(model, name_column)
 
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, NameSelector)
-            and self.db_name == other.db_name
-            and self.model == other.model
-            and self.name_column == other.name_column
-        )
-
-    def __hash__(self) -> int:
-        return hash((self.db_name, self.model, self.name_column))
-
     def __repr__(self) -> str:
         return (
-            "NameSelector("
-            f"db_name={self.db_name!r}, "
+            "NameResolver("
             f"model={self.model.resource_name()!r}, "
+            f"db_name={self.db_name!r}, "
             f"name_column={self.name_column!r}"
             ")"
         )
 
-    def __call__(
-        self,
-        session: SeerAPISession,
-        arg: str = Depends(parse_string_arg),
-    ) -> set[int]:
-        if arg.isdigit():
-            return {int(arg)}
+    def __call__(self, sessions: AllSessions, arg: str) -> Iterable[_T_Model]:
+        session = sessions.get(self.db_name)
+        if session is None:
+            logger.warning(f"{self!r}: 未找到数据库会话")
+            return ()
 
         stripped_arg = _strip_special(arg)
-        statement = select(self.model.id).where(
+        statement = select(self.model).where(
             _col_strip_special(col(self.name_column)).like(f"%{stripped_arg}%")
         )
+        return session.exec(statement).all()
 
-        return set(session.exec(statement).all())
+
+class AliasResolver(Generic[_T_Model]):
+    """通过别名表搜索 ID，再从主数据库获取完整对象。"""
+
+    __slots__ = ("alias_db", "alias_model", "data_db", "model")
+
+    def __init__(
+        self,
+        model: type[_T_Model],
+        alias_model: type[BaseAliasORM],
+        *,
+        alias_db: str = _ALIAS_DB,
+        data_db: str = _SEERAPI_DB,
+    ) -> None:
+        self.model = model
+        self.alias_model = alias_model
+        self.alias_db = alias_db
+        self.data_db = data_db
+
+    def __repr__(self) -> str:
+        return (
+            "AliasResolver("
+            f"model={self.model.resource_name()!r}, "
+            f"alias_model={self.alias_model.__name__!r}, "
+            f"alias_db={self.alias_db!r}, "
+            f"data_db={self.data_db!r}"
+            ")"
+        )
+
+    def __call__(self, sessions: AllSessions, arg: str) -> Iterable[_T_Model]:
+        alias_session = sessions.get(self.alias_db)
+        if alias_session is None:
+            logger.warning(f"{self!r}: 未找到别名数据库会话")
+            return ()
+
+        try:
+            stripped_arg = arg.strip()
+            statement = select(self.alias_model).where(
+                _col_strip_special(col(self.alias_model.name)).like(f"%{stripped_arg}%")
+            )
+            aliases = alias_session.exec(statement).all()
+            ids = {alias.target_id for alias in aliases}
+        except OperationalError as e:
+            logger.error(f"AliasResolver error: {e}")
+            return ()
+
+        if not ids:
+            return ()
+
+        data_session = sessions.get(self.data_db)
+        if data_session is None:
+            logger.warning(f"{self!r}: 未找到数据数据库会话")
+            return ()
+
+        return data_session.exec(
+            select(self.model).where(col(self.model.id).in_(ids))
+        ).all()
 
 
 class Getter(Generic[_T_Model]):
-    __slots__ = ("model", "selectors")
+    __slots__ = ("model", "resolvers")
 
-    def __init__(self, model: type[_T_Model], *selectors: IdSelector) -> None:
+    def __init__(self, model: type[_T_Model], *resolvers: Resolver[_T_Model]) -> None:
         self.model = model
-        self.selectors = set(selectors)
-
-    def get_ids(self, sessions: AllSessions, arg: str) -> set[int]:
-        ids = set()
-        for selector in self.selectors:
-            if selector.db_name not in sessions:
-                logger.warning(f"{selector!r}: 未找到数据库会话")
-                continue
-
-            ids |= selector(sessions[selector.db_name], arg)
-
-        return ids
+        self.resolvers = resolvers
 
     def get(self, session: SQLModelSession, id_: int) -> _T_Model | None:
         return session.get(self.model, id_)
 
-    def get_multiple(
-        self, session: SQLModelSession, ids: Iterable[int]
-    ) -> tuple[_T_Model, ...]:
-        return tuple(
-            session.exec(select(self.model).where(col(self.model.id).in_(ids))).all()
-        )
-
     def __call__(
         self, sessions: AllSessions, arg: str = Depends(parse_string_arg)
     ) -> tuple[_T_Model, ...]:
-        ids = self.get_ids(sessions, arg)
-        return self.get_multiple(sessions[_SEERAPI_DB], ids)
+        if not arg:
+            return ()
 
-    def __and__(self, other: "Getter[_T_Model]") -> "Getter[_T_Model]":
+        seen: dict[int, _T_Model] = {}
+        for resolver in self.resolvers:
+            for obj in resolver(sessions, arg):
+                seen.setdefault(obj.id, obj)
+
+        return tuple(seen.values())
+
+    def __or__(self, other: "Getter[_T_Model]") -> "Getter[_T_Model]":
         if not isinstance(other, Getter):
             raise TypeError(f"Cannot combine Getter with {type(other)}")
-
-        return Getter(
-            self.model,
-            *self.selectors,
-            *other.selectors,
-        )
-
-    def __rand__(self, other: "Getter[_T_Model]") -> "Getter[_T_Model]":
-        if not isinstance(other, Getter):
-            raise TypeError(f"Cannot combine Getter with {type(other)}")
-
-        return Getter(
-            self.model,
-            *other.selectors,
-            *self.selectors,
-        )
+        return Getter(self.model, *self.resolvers, *other.resolvers)
 
 
 PetDataGetter = Getter(
     PetORM,
-    NameSelector(db_name=_SEERAPI_DB, model=PetORM),
-    AliasSelector(db_name=_ALIAS_DB, model=PetAliasORM),
+    IdResolver(PetORM),
+    NameResolver(PetORM),
+    AliasResolver(PetORM, PetAliasORM),
 )
 
 
@@ -247,7 +274,8 @@ def GetPetData() -> Any:
 
 MintmarkDataGetter = Getter(
     MintmarkORM,
-    NameSelector(db_name=_SEERAPI_DB, model=MintmarkORM),
+    IdResolver(MintmarkORM),
+    NameResolver(MintmarkORM),
 )
 
 
@@ -257,7 +285,8 @@ def GetMintmarkData() -> Any:
 
 MintmarkClassDataGetter = Getter(
     MintmarkClassCategoryORM,
-    NameSelector(db_name=_SEERAPI_DB, model=MintmarkClassCategoryORM),
+    # IdResolver(MintmarkClassCategoryORM),
+    NameResolver(MintmarkClassCategoryORM),
 )
 
 
@@ -267,7 +296,8 @@ def GetMintmarkClassData() -> Any:
 
 PetSkinDataGetter = Getter(
     PetSkinORM,
-    NameSelector(db_name=_SEERAPI_DB, model=PetSkinORM),
+    IdResolver(PetSkinORM),
+    NameResolver(PetSkinORM),
 )
 
 
@@ -277,8 +307,9 @@ def GetPetSkinData() -> Any:
 
 GemDataGetter = Getter(
     GemORM,
-    NameSelector(db_name=_SEERAPI_DB, model=GemORM),
-    AliasSelector(db_name=_ALIAS_DB, model=GemAliasORM),
+    IdResolver(GemORM),
+    NameResolver(GemORM),
+    AliasResolver(GemORM, GemAliasORM),
 )
 
 
@@ -288,7 +319,8 @@ def GetGemData() -> Any:
 
 GemCategoryDataGetter = Getter(
     GemCategoryORM,
-    NameSelector(db_name=_SEERAPI_DB, model=GemCategoryORM),
+    # IdResolver(GemCategoryORM),
+    NameResolver(GemCategoryORM),
 )
 
 

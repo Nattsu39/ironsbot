@@ -1,6 +1,7 @@
 import sqlite3
 from collections.abc import Generator
 from contextlib import ExitStack
+from typing import Final
 
 from nonebot.log import logger
 from sqlalchemy.engine.base import Engine
@@ -35,13 +36,9 @@ class DatabaseManager:
         self._engines[name] = self._create_memory_engine()
         logger.debug(f"已注册内存数据库引擎 '{name}'")
 
-    def get_engine(self, name: str) -> Engine:
+    def get_engine(self, name: str) -> Engine | None:
         """获取指定名称的数据库引擎。"""
-        try:
-            return self._engines[name]
-        except KeyError:
-            msg = f"数据库 '{name}' 未注册"
-            raise KeyError(msg) from None
+        return self._engines.get(name)
 
     def load_from_file(self, name: str, file_path: str) -> None:
         """从 SQLite 文件导入全部数据到新的内存引擎，然后原子替换旧引擎。"""
@@ -63,11 +60,17 @@ class DatabaseManager:
             old_engine.dispose()
         logger.debug(f"已从文件导入数据到内存数据库 '{name}'")
 
-    def get_session(self, name: str) -> Generator[SQLModelSession, None, None]:
+    def get_session(self, name: str) -> Generator[SQLModelSession, None, None] | None:
         """获取指定数据库的会话生成器。"""
         engine = self.get_engine(name)
-        with SQLModelSession(engine) as session:
-            yield session
+        if engine is None:
+            return None
+
+        def _gen() -> Generator[SQLModelSession, None, None]:
+            with SQLModelSession(engine) as session:
+                yield session
+
+        return _gen()
 
     def get_all_sessions(
         self,
@@ -96,4 +99,4 @@ class DatabaseManager:
         return list(self._engines.keys())
 
 
-db_manager = DatabaseManager()
+db_manager: Final[DatabaseManager] = DatabaseManager()
