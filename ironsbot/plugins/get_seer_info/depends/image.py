@@ -8,6 +8,12 @@ PetBodyImageGetter = GetImage(
 )
 PetBodyImage = Depends(PetBodyImageGetter)
 
+PetHeadImageGetter = GetImage(
+    "https://newseer.61.com/web/monster/head/{}.png",
+    "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pet/head/{}.png",
+)
+PetHeadImage = Depends(PetHeadImageGetter)
+
 MintmarkBodyImageGetter = GetImage(
     "https://newseer.61.com/web/countermark/icon/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/countermark/icon/{}.png",

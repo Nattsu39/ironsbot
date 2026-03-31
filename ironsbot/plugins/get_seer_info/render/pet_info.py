@@ -1,18 +1,19 @@
-from collections.abc import Callable
-from pathlib import Path
+import asyncio
 from typing import Any, Literal, TypedDict
 
-from nonebot import require
 from nonebot_plugin_htmlkit import template_to_pic
 from seerapi_models import GlossaryEntryORM, PetORM, SkillInPetORM, SoulmarkORM
 
 from ironsbot.utils.analyze_parser import AnalyzeDescParser
 
-require(name="nonebot_plugin_htmlkit")
+from ..depends.image import (
+    ElementTypeImageGetter,
+    PetBodyImageGetter,
+    PetHeadImageGetter,
+)
+from ._common import ANALYZE_DESC_STYLES, TEMPLATES_PATH, to_data_uri
 
-TEMPLATES_PATH = Path(__file__).parent / "templates" / "pet_info"
-PET_IMAGE_URL = "https://newseer.61.com/web/monster/body/{}.png"
-PET_HEAD_IMAGE_URL = "https://newseer.61.com/web/monster/head/{}.png"
+TEMPLATE_PATH = TEMPLATES_PATH / "pet_info"
 
 STAT_BAR_MAX_WIDTH = 120
 STAT_MAX_VALUE = 200
@@ -54,11 +55,6 @@ class SoulmarkDict(TypedDict):
     pve_effective: bool | None
     tags: list[str]
     glossaries: list[GlossaryDict]
-
-
-ANALYZE_DESC_STYLES: dict[str, Callable[..., str]] = {
-    "#f35555": lambda t: f'<b style="color:#60e0ff">{t}</b>',
-}
 
 
 def _extract_skill(skill_in_pet: SkillInPetORM) -> list[SkillDict]:
@@ -162,8 +158,23 @@ async def render_pet_info(pet: PetORM) -> bytes:
 
     level_skills.sort(key=lambda s: s["learning_level"] or 0, reverse=True)
 
+    type_ids = list({skill["type_id"] for skill in all_skills} | {pet.type.id})
+
+    pet_head_bytes, pet_body_bytes, *type_icon_results = await asyncio.gather(
+        PetHeadImageGetter.get_bytes(str(pet.resource_id)),
+        PetBodyImageGetter.get_bytes(str(pet.resource_id)),
+        *(ElementTypeImageGetter.get_bytes(str(tid)) for tid in type_ids),
+        ElementTypeImageGetter.get_bytes("prop"),
+    )
+
+    type_icons: dict[int | str, str] = {
+        tid: to_data_uri(data)
+        for tid, data in zip(type_ids, type_icon_results[:-1], strict=True)
+    }
+    type_icons["prop"] = to_data_uri(type_icon_results[-1])
+
     return await template_to_pic(
-        template_path=TEMPLATES_PATH,
+        template_path=TEMPLATE_PATH,
         template_name="template.html",
         templates={
             "pet_name": pet.name,
@@ -172,9 +183,9 @@ async def render_pet_info(pet: PetORM) -> bytes:
             "pet_gender_icon": f"images/{pet.gender.id}.png",
             "pet_type_id": pet.type.id,
             "pet_type_name": pet.type.name,
-            "pet_head_url": PET_HEAD_IMAGE_URL.format(pet.resource_id),
-            "pet_image_url": PET_IMAGE_URL.format(pet.resource_id),
-            "type_icon_url": "https://newseer.61.com/web/PetType/{}.png",
+            "pet_head_img": to_data_uri(pet_head_bytes),
+            "pet_body_img": to_data_uri(pet_body_bytes),
+            "type_icons": type_icons,
             "stats": stats,
             "advance_stats": advance_stats,
             "soulmarks": soulmarks,

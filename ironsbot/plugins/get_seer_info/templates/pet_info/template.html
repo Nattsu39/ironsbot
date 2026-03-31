@@ -419,9 +419,9 @@
     <div class="sk-card">
         <div class="sk-header">
             {% if skill.category_id == 4 %}
-            <img class="sk-type-icon" src="https://newseer.61.com/web/PetType/prop.png" />
+            <img class="sk-type-icon" src="{{ type_icons['prop'] }}" />
             {% else %}
-            <img class="sk-type-icon" src="{{ type_icon_url.format(skill.type_id) }}" />
+            <img class="sk-type-icon" src="{{ type_icons[skill.type_id] }}" />
             {% endif %}
             <span class="sk-name">{{ skill.name }}</span>
             <div class="sk-badges">
@@ -488,14 +488,14 @@
                     <table class="pet-info-header">
                         <tr>
                             <td class="pet-head-cell">
-                                <img class="pet-head-icon" src="{{ pet_head_url }}" />
+                                <img class="pet-head-icon" src="{{ pet_head_img }}" />
                             </td>
                             <td class="pet-text-cell">
                                 <div class="pet-name">{{ pet_name }}</div>
                                 <div class="pet-meta">
                                     ID: {{ pet_id }}
                                     &nbsp;&nbsp;|&nbsp;&nbsp;
-                                    <img class="pet-meta-type-icon" src="{{ type_icon_url.format(pet_type_id) }}" />
+                                    <img class="pet-meta-type-icon" src="{{ type_icons[pet_type_id] }}" />
                                     {{ pet_type_name }}
                                     &nbsp;&nbsp;|&nbsp;&nbsp;
                                     <img class="pet-gender-icon" src="{{ pet_gender_icon }}" />
@@ -509,7 +509,7 @@
                         </tr>
                     </table>
                     <div class="pet-img-box">
-                        <img class="pet-img" src="{{ pet_image_url }}" />
+                        <img class="pet-img" src="{{ pet_body_img }}" />
                     </div>
 
                     <div class="section">
