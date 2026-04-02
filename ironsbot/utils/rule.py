@@ -56,15 +56,23 @@ class StartswithOrEndswithRule:
 
         flags = re.IGNORECASE if self.ignorecase else 0
 
-        sw = re.match(
-            f"^(?:{'|'.join(re.escape(p) for p in self.prefixes)})",
-            text,
-            flags,
+        sw = (
+            re.match(
+                f"^(?:{'|'.join(re.escape(p) for p in self.prefixes)})",
+                text,
+                flags,
+            )
+            if self.prefixes
+            else None
         )
-        ew = re.search(
-            f"(?:{'|'.join(re.escape(s) for s in self.suffixes)})$",
-            text,
-            flags,
+        ew = (
+            re.search(
+                f"(?:{'|'.join(re.escape(s) for s in self.suffixes)})$",
+                text,
+                flags,
+            )
+            if self.suffixes
+            else None
         )
 
         if not sw and not ew:
