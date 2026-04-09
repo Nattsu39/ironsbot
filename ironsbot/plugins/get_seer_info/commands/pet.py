@@ -1,14 +1,16 @@
 from nonebot.adapters import Bot, MessageTemplate
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
+from nonebot.params import Depends
 from nonebot.typing import T_State
 from nonebot_plugin_saa import Image, MessageFactory
 from seerapi_models import PetORM, PetSkinORM
 
-from ironsbot.plugins.get_seer_info.group import matcher_group
+from ironsbot.utils.parse_arg import parse_string_arg
 from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import GetPetData, GetPetSkinData, PetBodyImageGetter, PetDataGetter
+from ..group import matcher_group
 from ..prompt import (
     PROMPT_STATE_KEY,
     Prompt,
@@ -71,6 +73,7 @@ async def handle_pet_image(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
+    arg: str = Depends(parse_string_arg),
     pets: tuple[PetORM, ...] = GetPetData(),
     skins: tuple[PetSkinORM, ...] = GetPetSkinData(),
 ) -> None:
@@ -85,6 +88,12 @@ async def handle_pet_image(
         await msg.finish()
 
     if len(items) > PROMPT_MAX_ITEMS:
+        if len(arg) == 1:
+            for item in items:
+                if item.name == arg:
+                    msg = await build_pet_image_message(item)
+                    await msg.finish()
+
         await matcher.finish(f"重名超过{PROMPT_MAX_ITEMS}个，请重新检索关键词！")
 
     prompt = Prompt(
@@ -130,6 +139,7 @@ async def handle_pet_info(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
+    arg: str = Depends(parse_string_arg),
     pets: tuple[PetORM, ...] = GetPetData(),
 ) -> None:
     if not pets:
@@ -140,6 +150,12 @@ async def handle_pet_info(
         await msg.finish()
 
     if len(pets) > PROMPT_MAX_ITEMS:
+        if len(arg) == 1:
+            for pet in pets:
+                if pet.name == arg:
+                    msg = await build_pet_info_message(pet)
+                    await msg.finish()
+
         await matcher.finish(f"重名超过{PROMPT_MAX_ITEMS}个，请重新检索关键词！")
 
     prompt = Prompt(
