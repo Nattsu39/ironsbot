@@ -11,6 +11,8 @@ from typing import Any, Generic, TypeGuard, TypeVar, overload
 from nonebot import logger
 from typing_extensions import Self, TypeVarTuple, Unpack
 
+from ironsbot.plugins.headless_seer.exception import SocketRecvError
+
 from .. import decrypt
 from ..as3bytearray import AS3ByteArray
 from ..command_id import COMMAND_ID
@@ -459,7 +461,7 @@ class SeerEncryptConnect(SeerConnect):
             self._result = headinfo.result
 
         if headinfo.result >= 1000:
-            raise RuntimeError(f"请求失败：{headinfo.result}")
+            raise SocketRecvError(headinfo, f"请求失败：{headinfo.result}")
 
         body_bytes = data[self.HEAD_LENGTH :]
         if body_type := packet_register.get(headinfo.cmd_id):

@@ -6,7 +6,6 @@ from ..packet.packet import Deserializable
 
 
 class DailyRankInfo(Deserializable):
-    rank: f.Int
     user_id: f.UInt
     score: f.Int
     nick: Annotated[str, f.Unicode[16]]
@@ -15,7 +14,7 @@ class DailyRankInfo(Deserializable):
 class DailyRankList(Deserializable):
     count: f.UInt
     rank_list: Annotated[
-        list[DailyRankInfo], f.Array[f.size_by("rank_count"), DailyRankInfo]
+        list[DailyRankInfo], f.Array[f.size_by("count"), DailyRankInfo]
     ]
 
 

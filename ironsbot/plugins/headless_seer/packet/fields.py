@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 from operator import attrgetter as _attrgetter
 
+from .codecs import StringCodec, UTF8Codec
+
 SizeGetter = Callable[[Any], int]
 SizeTypes = int | SizeGetter
 
@@ -175,7 +177,12 @@ class Unicode(str, SequenceTag):
             raise TypeError("Unicode 的参数数量必须为 1 或 2 个")
 
         arg: Any = params[0]
-        encoding: str = params[1] if len(params) > 1 else "utf-8"
+        codec: type[StringCodec] = params[1] if len(params) > 1 else UTF8Codec
+
+        if not isinstance(codec, type) or not issubclass(codec, StringCodec):
+            raise TypeError(
+                "Unicode 的第二个参数必须是实现了 StringCodec 协议的类"
+            )
 
         if arg is Ellipsis:
             return _create_wrapper(
@@ -183,27 +190,34 @@ class Unicode(str, SequenceTag):
                 cls_name=f"_{cls.__name__}",
                 cls_bases=(str,),
                 struct_mode="s",
-                pre_processor=lambda _, v: v.encode(encoding),
-                post_processor=lambda _, v: v.decode(encoding),
+                pre_processor=lambda _, v: codec.encode(v),
+                post_processor=lambda _, v: codec.decode(v),
             )
 
         if not (isinstance(arg, int) and arg >= 0) and not callable(arg):
             raise TypeError(
                 "Unicode 的第一个参数必须为一个非负整数、可调用对象或 Ellipsis"
             )
-
         return _create_wrapper(
             cast("SizeTypes", arg),
             cls_name=f"_{cls.__name__}",
             cls_bases=(str,),
             struct_mode="s",
-            pre_processor=lambda _, v: v.encode(encoding),
-            post_processor=lambda _, v: v.decode(encoding),
+            pre_processor=lambda _, v: codec.encode(v),
+            post_processor=lambda _, v: codec.decode(v),
         )
 
 
 class BooleanType(BinaryTag):
     format_str: ClassVar[str] = "?"
+
+
+class Byte(int, BinaryTag):
+    format_str: ClassVar[str] = "b"
+
+
+class UByte(int, BinaryTag):
+    format_str: ClassVar[str] = "B"
 
 
 class ShortType(int, BinaryTag):

@@ -19,7 +19,7 @@ _validated_classes: set[type] = set()
 @dataclass_transform()
 @dataclass(slots=True)
 class Serializable:
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         set_slots = "__slots__" not in cls.__dict__
         dataclass(slots=set_slots)(cls)
 
@@ -54,6 +54,10 @@ class Serializable:
                 rest_field = field.name
         _validated_classes.add(cls)
 
+    @staticmethod
+    def _resolve_elem_tag(elem_cls: Any) -> Any:
+        return (None, *flatten_annotated(elem_cls))[-1]
+
     def calc_struct_format(self, endian: str = "!") -> str:
         """计算 struct 格式字符串。
 
@@ -75,12 +79,19 @@ class Serializable:
 
                 elem_cls = getattr(tag, "element_type", None)
                 if elem_cls is not None:
-                    items: list[Serializable] = getattr(self, field.name)
-                    if rest:
-                        length = len(items)
-                    if items:
-                        elem_fmt = items[0].calc_struct_format(endian="")
-                        fmt_parts.append(elem_fmt * length)
+                    elem_tag = self._resolve_elem_tag(elem_cls)
+                    if safe_issubclass(elem_tag, Serializable):
+                        items: list[Serializable] = getattr(self, field.name)
+                        if rest:
+                            length = len(items)
+                        if items:
+                            elem_fmt = items[0].calc_struct_format(endian="")
+                            fmt_parts.append(elem_fmt * length)
+                    elif is_binary(elem_tag):
+                        if rest:
+                            length = len(getattr(self, field.name))
+                        if length > 0:
+                            fmt_parts.append(f"{length}{elem_tag.format_str}")
                 elif rest:
                     obj = getattr(self, field.name)
                     pre = getattr(tag, "pre_processor", None)
@@ -108,9 +119,16 @@ class Serializable:
             obj = getattr(self, field.name)
 
             if is_binary(tag):
-                if hasattr(tag, "element_type"):
-                    for item in obj:
-                        values.extend(item._get_flat_values())
+                elem_cls = getattr(tag, "element_type", None)
+                if elem_cls is not None:
+                    elem_tag = self._resolve_elem_tag(elem_cls)
+                    if safe_issubclass(elem_tag, Serializable):
+                        for item in obj:
+                            values.extend(item._get_flat_values())
+                    else:
+                        pre = getattr(elem_tag, "pre_processor", None)
+                        for item in obj:
+                            values.append(pre(self, item) if pre is not None else item)
                 else:
                     pre = getattr(tag, "pre_processor", None)
                     if pre is not None:
@@ -148,16 +166,34 @@ class Deserializable(Serializable):
 
                 elem_cls = getattr(tag, "element_type", None)
                 if elem_cls is not None:
-                    items = []
-                    if rest:
-                        while len(mv) > 0:
-                            item, mv = elem_cls._from_memoryview(mv, endian)
-                            items.append(item)
-                    else:
-                        for _ in range(length):
-                            item, mv = elem_cls._from_memoryview(mv, endian)
-                            items.append(item)
-                    setattr(partial, field.name, items)
+                    elem_tag = Serializable._resolve_elem_tag(elem_cls)
+                    if safe_issubclass(elem_tag, Deserializable):
+                        items = []
+                        if rest:
+                            while len(mv) > 0:
+                                item, mv = elem_tag._from_memoryview(mv, endian)
+                                items.append(item)
+                        else:
+                            for _ in range(length):
+                                item, mv = elem_tag._from_memoryview(mv, endian)
+                                items.append(item)
+                        setattr(partial, field.name, items)
+                    elif is_binary(elem_tag):
+                        if rest:
+                            elem_size = struct.calcsize(endian + elem_tag.format_str)
+                            length = len(mv) // elem_size
+                        if length > 0:
+                            fmt = f"{length}{elem_tag.format_str}"
+                            full_fmt = endian + fmt
+                            size = struct.calcsize(full_fmt)
+                            unpacked = struct.unpack_from(full_fmt, mv)
+                            mv = mv[size:]
+                            post = getattr(elem_tag, "post_processor", None)
+                            if post is not None:
+                                unpacked = tuple(post(partial, v) for v in unpacked)
+                            setattr(partial, field.name, unpacked)
+                        else:
+                            setattr(partial, field.name, ())
                 else:
                     if rest:
                         length = len(mv)

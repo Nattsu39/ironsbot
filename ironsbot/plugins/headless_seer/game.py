@@ -2,6 +2,7 @@ import asyncio
 import json
 import random
 import time
+from dataclasses import dataclass
 from typing import NamedTuple, overload
 
 import httpx
@@ -9,15 +10,30 @@ from nonebot import logger
 
 from .command_id import COMMAND_ID
 from .core import SeerConnect, SeerEncryptConnect
+from .exception import ClientNotInitializedError
+from .packets import (
+    DailyRankList,
+    MoreInfo,
+    OnLineInfo,
+    SimpleTeamInfo,
+    UserInfo,
+)
 from .packets.head import HeadInfo
 from .packets.login import SessionPackct
-from .packets.team import SimpleTeamInfo
+from .packets.peak import DailyRankParam
 from .type_hint import CommandID, SocketRecvPacketBody, T_Deserializable
 
 
 class Address(NamedTuple):
     host: str
     port: int
+
+
+@dataclass(slots=True)
+class PeakData:
+    current_score: int
+    current_highest_score: int
+    history_highest_score: int
 
 
 class SeerGame:
@@ -51,7 +67,7 @@ class SeerGame:
     @property
     def client(self) -> SeerEncryptConnect:
         if self._impl is None:
-            raise RuntimeError("客户端尚未初始化，请先登录")
+            raise ClientNotInitializedError
         return self._impl
 
     @overload
@@ -167,21 +183,26 @@ class SeerGame:
                 f"{self.user_id}：将在 {delay:.1f}s 后尝试重连 "
                 f"({attempt}/{self._reconnect_retries})"
             )
+
             try:
                 await asyncio.sleep(delay)
             except asyncio.CancelledError:
                 return
+
             try:
                 await self.login()
-                logger.info(f"{self.user_id}：重连成功")
-                return
             except asyncio.CancelledError:
                 return
             except Exception:
                 logger.opt(exception=True).warning(
                     f"{self.user_id}：重连失败 ({attempt}/{self._reconnect_retries})"
                 )
+            else:
+                logger.info(f"{self.user_id}：重连成功")
+                return
+
             delay = min(delay * 2, self._reconnect_delay_max)
+
         logger.error(
             f"{self.user_id}：已达最大重试次数 ({self._reconnect_retries})，放弃重连"
         )
@@ -192,9 +213,79 @@ class SeerGame:
         self._reconnect_task = None
 
     async def get_team_info(self, team_id: int) -> SimpleTeamInfo:
-        """获取当前用户的战队信息。"""
+        """获取战队信息。"""
         _head, body = await self.send_and_wait(COMMAND_ID.TEAM_GET_INFO, team_id)
         return body
+
+    async def get_user_info(self, user_id: int) -> UserInfo:
+        """获取用户信息。"""
+        _head, body = await self.send_and_wait(COMMAND_ID.GET_USER_INFO, user_id)
+        return body
+
+    async def get_more_user_info(self, user_id: int) -> MoreInfo:
+        """获取用户详细信息（注册时间、成就、精灵数等）。"""
+        _head, body = await self.send_and_wait(COMMAND_ID.GET_MORE_USER_INFO, user_id)
+        return body
+
+    async def get_limit_pool_vote(self, sub_key: int) -> DailyRankList:
+        """获取巅峰限制池投票排行榜信息。"""
+        _head, body = await self.send_and_wait(
+            COMMAND_ID.GET_DAILY_RANK_INFO,
+            DailyRankParam(key=191, sub_key=sub_key, start=0, end=19),
+        )
+        return body
+
+    async def get_semi_limit_pool_vote(self, sub_key: int) -> DailyRankList:
+        """获取巅峰准限制池投票排行榜信息。"""
+        _head, body = await self.send_and_wait(
+            COMMAND_ID.GET_DAILY_RANK_INFO,
+            DailyRankParam(key=192, sub_key=sub_key, start=0, end=29),
+        )
+        return body
+
+    async def get_user_peak_expert_data(self, user_id: int) -> PeakData:
+        result = await asyncio.gather(
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 129441),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 129442),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 129443),
+        )
+        return PeakData(
+            current_score=result[0][1].value,
+            current_highest_score=result[1][1].value,
+            history_highest_score=result[2][1].value,
+        )
+
+    async def get_user_peak_data(self, user_id: int) -> PeakData:
+        result = await asyncio.gather(
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124801),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124802),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124800),
+        )
+        return PeakData(
+            current_score=result[0][1].value,
+            history_highest_score=result[1][1].value,
+            current_highest_score=result[2][1].value,
+        )
+
+    async def get_user_peak_wild_data(self, user_id: int) -> PeakData:
+        result = await asyncio.gather(
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124790),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124791),
+            self.send_and_wait(COMMAND_ID.USER_FOREVER_VALUE, user_id, 124792),
+        )
+        return PeakData(
+            current_highest_score=result[0][1].value,
+            current_score=result[1][1].value,
+            history_highest_score=result[2][1].value,
+        )
+
+    async def get_user_online_info(self, user_id: int) -> OnLineInfo | None:
+        """当用户不在线时返回 None。"""
+        _head, body = await self.send_and_wait(COMMAND_ID.SEE_ONLINE, 1, user_id)
+        try:
+            return body.infos[0]
+        except IndexError:
+            return None
 
     @staticmethod
     async def _fetch_login_server_addr(url: str) -> Address:
