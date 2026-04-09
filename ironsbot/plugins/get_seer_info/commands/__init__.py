@@ -1,14 +1,17 @@
-from .mintmark import mintmark_matcher
-from .other import data_version_matcher, preview_matcher, server_info_matcher
-from .pet import pet_image_matcher, pet_info_matcher
-from .team import team_matcher
+import importlib
+import pkgutil
 
-__all__ = [
-    "data_version_matcher",
-    "mintmark_matcher",
-    "pet_image_matcher",
-    "pet_info_matcher",
-    "preview_matcher",
-    "server_info_matcher",
-    "team_matcher",
-]
+from nonebot import logger
+
+__all__ = []
+
+# 自动导入本目录下所有非私有模块
+for _, module_name, __ in pkgutil.iter_modules(__path__):
+    if not module_name.startswith("_"):
+        try:
+            importlib.import_module(f".{module_name}", __name__)
+        except ImportError:
+            logger.opt(exception=True).error(f"模块 {module_name} 导入失败")
+            continue
+
+        __all__ += [module_name]  # noqa: PLE0604

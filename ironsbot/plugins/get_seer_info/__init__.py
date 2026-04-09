@@ -1,14 +1,10 @@
+import importlib
+
 from nonebot.plugin import PluginMetadata
 
-from .commands import (
-    data_version_matcher,
-    mintmark_matcher,
-    pet_image_matcher,
-    pet_info_matcher,
-    preview_matcher,
-    server_info_matcher,
-)
 from .config import Config
+
+importlib.import_module("ironsbot.plugins.get_seer_info.commands")
 
 usage = """🤖赛尔号数据查询插件，所有命令需放置在消息开头或结尾才能触发，命令和参数间可不添加空格。
 💡注意：回复他人消息时不会触发命令。
@@ -47,12 +43,3 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     supported_adapters={"~onebot.v11"},
 )
-
-__all__ = [
-    "data_version_matcher",
-    "mintmark_matcher",
-    "pet_image_matcher",
-    "pet_info_matcher",
-    "preview_matcher",
-    "server_info_matcher",
-]
