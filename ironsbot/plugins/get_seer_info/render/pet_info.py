@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 from typing import Any, Literal, TypedDict
 
 from nonebot_plugin_htmlkit import template_to_pic
@@ -11,12 +12,15 @@ from ..depends.image import (
     PetBodyImageGetter,
     PetHeadImageGetter,
 )
-from ._common import ANALYZE_DESC_STYLES, TEMPLATES_PATH, to_data_uri
+from ._common import TEMPLATES_PATH, to_data_uri
 
 TEMPLATE_PATH = TEMPLATES_PATH / "pet_info"
 
 STAT_BAR_MAX_WIDTH = 120
 STAT_MAX_VALUE = 200
+_ANALYZE_DESC_STYLES: dict[str, Callable[..., str]] = {
+    "#f35555": lambda t: f'<b style="color:#60e0ff">{t}</b>',
+}
 
 
 class SkillDict(TypedDict):
@@ -62,7 +66,7 @@ def _extract_skill(skill_in_pet: SkillInPetORM) -> list[SkillDict]:
     effects = [
         {
             "id": e.effect_id,
-            "info": AnalyzeDescParser(e.analyze_info).to_html(ANALYZE_DESC_STYLES),
+            "info": AnalyzeDescParser(e.analyze_info).to_html(_ANALYZE_DESC_STYLES),
         }
         for e in skill.skill_effect
     ]
@@ -114,7 +118,7 @@ def _extract_soulmark(
 ) -> SoulmarkDict:
     tags = [t.name for t in sm.tag] if sm.tag else []
     desc_parser = AnalyzeDescParser(sm.analyze_desc or sm.desc)
-    desc = desc_parser.to_html(ANALYZE_DESC_STYLES)
+    desc = desc_parser.to_html(_ANALYZE_DESC_STYLES)
     return {
         "desc": desc,
         "intensified": sm.intensified,
