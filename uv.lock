@@ -352,6 +352,15 @@ wheels = [
 ]
 
 [[package]]
+name = "iniconfig"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+]
+
+[[package]]
 name = "ironsbot"
 version = "0.1.0"
 source = { virtual = "." }
@@ -376,6 +385,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
@@ -390,14 +400,15 @@ requires-dist = [
     { name = "nonebot-plugin-treehelp", specifier = ">=0.5.0" },
     { name = "nonebot2", extras = ["fastapi", "httpx"], specifier = ">=2.4.4" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "seerapi", specifier = ">=104.0.0" },
-    { name = "seerapi-models", specifier = ">=104.0.0" },
+    { name = "seerapi", specifier = ">=105.0.0" },
+    { name = "seerapi-models", specifier = ">=105.0.0" },
 ]
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = ">=1.38.1" },
+    { name = "pytest", specifier = ">=9.0.2" },
     { name = "ruff", specifier = ">=0.15.2" },
 ]
 
@@ -862,6 +873,24 @@ httpx = [
 ]
 
 [[package]]
+name = "packaging"
+version = "26.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+]
+
+[[package]]
+name = "pluggy"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
 name = "propcache"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1140,6 +1169,24 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest"
+version = "9.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/db/7ef3487e0fb0049ddb5ce41d3a49c235bf9ad299b6a25d5780a89f19230f/pytest-9.0.2.tar.gz", hash = "sha256:75186651a92bd89611d1d9fc20f0b4345fd827c41ccd5c299a868a05d70edf11", size = 1568901, upload-time = "2025-12-06T21:30:51.014Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/ab/b3226f0bd7cdcf710fbede2b3548584366da3b19b5021e74f5bde2a8fa3f/pytest-9.0.2-py3-none-any.whl", hash = "sha256:711ffd45bf766d5264d487b917733b453d917afd2b0ad65223959f59089f875b", size = 374801, upload-time = "2025-12-06T21:30:49.154Z" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1239,7 +1286,7 @@ wheels = [
 
 [[package]]
 name = "seerapi"
-version = "104.0.0"
+version = "105.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hishel", extra = ["httpx"] },
@@ -1247,22 +1294,22 @@ dependencies = [
     { name = "seerapi-models" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/e9/9ff62a26d411fb6615b6663638282546a43922c0e4b3293a5ca2fbe5f723/seerapi-104.0.0.tar.gz", hash = "sha256:83de318c1c7acf58d1d89919e81a9335ca783a6a6eabb1f56582de83f1ec2f91", size = 15821, upload-time = "2026-03-09T11:29:56.482Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/fe/e44f5b4972b61b60d2b7aa84bef5f62e4c020d24289ba6743303edfc8841/seerapi-105.0.0.tar.gz", hash = "sha256:fe9f4d3ee7e31de93e1efbd6308d1368937ce74f63673cb6fc56c71dd3bc89c5", size = 16351, upload-time = "2026-04-08T13:50:51.779Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/cd/174e7397f69535b35ec843e3b5a68bcaf094a1ce77224540f521d463cff1/seerapi-104.0.0-py3-none-any.whl", hash = "sha256:402d2b3a52303bb52542728a0a0ab4cdb79df1935f5b308cb2ec363ce8f25b35", size = 13667, upload-time = "2026-03-09T11:29:57.475Z" },
+    { url = "https://files.pythonhosted.org/packages/da/25/d92cd344145b9cbee780e7f0041b4e7ec104dd312153f571ab51619c7c59/seerapi-105.0.0-py3-none-any.whl", hash = "sha256:017963a05cd7700f0a3a881a2c17572ff1619b1ee109b49b680ba70701dae9d4", size = 14193, upload-time = "2026-04-08T13:50:52.966Z" },
 ]
 
 [[package]]
 name = "seerapi-models"
-version = "104.0.0"
+version = "105.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlmodel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/d3/7bda6583de3e88d7d2a803f48e66ebfc923507b03b48387f384b24d450d2/seerapi_models-104.0.0.tar.gz", hash = "sha256:4ae8734b05a48b8bbb43cc7ec06fa7f4bc0f7cfc1eda0fef3c6b9d6e5e09326f", size = 28189, upload-time = "2026-03-09T10:42:42.023Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/e5/a29d3e760a3b1f05a94534dc4b4b0d5538d529cffa6986e02f0d9a43bcbd/seerapi_models-105.0.0.tar.gz", hash = "sha256:8ab96bebfe4e72f7385c2c4c2e13b8f90d5dba181bded41c27fcd3392d6604e4", size = 29209, upload-time = "2026-04-08T13:20:34.405Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/ad/0395cac61cc73607db52080386cc1342fdcfaa04cd83594759fb4ef7f16b/seerapi_models-104.0.0-py3-none-any.whl", hash = "sha256:16e72e58135c4c82f6d97eb4abb179b0ae9611a12233a6b0076fab6a6a6a25fb", size = 43401, upload-time = "2026-03-09T10:42:41.002Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/32/76cbb14f8e4241913e6268a688fb0c29586a54622240084621b894afc7d8/seerapi_models-105.0.0-py3-none-any.whl", hash = "sha256:ed0c390129ff370a4a6db44ededf4322913d47ff953014bf58c32fab33a3c81b", size = 45093, upload-time = "2026-04-08T13:20:33.487Z" },
 ]
 
 [[package]]
