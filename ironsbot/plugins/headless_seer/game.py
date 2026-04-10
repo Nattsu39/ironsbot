@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import re
 import time
 from dataclasses import dataclass
 from typing import NamedTuple, overload
@@ -108,58 +109,69 @@ class SeerGame:
                 self._impl.disconnect()
                 self._impl = None
 
+            if await self._fetch_server_notice_text():
+                raise RuntimeError("服务器正在维护")
+
             address = await self._fetch_login_server_addr(self._login_server_url)
             login_client = await SeerConnect.new_client(*address)
 
-            _head, svr_list_info = await login_client.send_and_wait(
-                COMMAND_ID.COMMEND_ONLINE,
-                self.user_id,
-                SessionPackct(session=session),
-                timeout=20.0,
-            )
-            logger.info("登录认证成功")
-            if not svr_list_info.svr_list:
-                raise RuntimeError("登录失败，服务器列表为空")
+            try:
+                _head, svr_list_info = await login_client.send_and_wait(
+                    COMMAND_ID.COMMEND_ONLINE,
+                    self.user_id,
+                    SessionPackct(session=session),
+                    timeout=20.0,
+                )
+                logger.info("登录认证成功")
+                if not svr_list_info.svr_list:
+                    raise RuntimeError("登录失败，服务器列表为空")
 
-            servers = [
-                server for server in svr_list_info.svr_list if server.online_id > 0
-            ]
-            if not servers:
-                raise RuntimeError("登录失败，服务器列表为空")
+                servers = [
+                    server for server in svr_list_info.svr_list if server.online_id > 0
+                ]
+                if not servers:
+                    raise RuntimeError("登录失败，服务器列表为空")
 
-            server = random.choice(servers)
-            await login_client.send_and_wait(
-                COMMAND_ID.RANGE_ONLINE,
-                self.user_id,
-                server.online_id,
-                server.online_id,
-                0,
-                timeout=20.0,
-            )
+                server = random.choice(servers)
+                await login_client.send_and_wait(
+                    COMMAND_ID.RANGE_ONLINE,
+                    self.user_id,
+                    server.online_id,
+                    server.online_id,
+                    0,
+                    timeout=20.0,
+                )
 
-            ip = server.ip.strip(b"\x00").decode("utf-8")
-            port = server.port
+                ip = server.ip.strip(b"\x00").decode("utf-8")
+                port = server.port
+            finally:
+                login_client.disconnect()
 
-            self._impl = SeerEncryptConnect(
+            impl = SeerEncryptConnect(
                 asyncio.get_running_loop(),
                 heartbeat_interval=self._heartbeat_interval,
                 on_heartbeat=self._send_heartbeat,
                 on_disconnect=self._handle_disconnect,
             )
-            await self._impl.connect(ip, port)
-            await asyncio.sleep(5)
-            _head, res = await self._impl.send_and_wait(
-                COMMAND_ID.LOGIN_IN,
-                self.user_id,
-                self.build_login_packet(session),
-            )
-            if len(res) == 0:
-                raise RuntimeError("登录失败，响应为空")
+            try:
+                await impl.connect(ip, port)
+                await asyncio.sleep(5)
+                _head, res = await impl.send_and_wait(
+                    COMMAND_ID.LOGIN_IN,
+                    self.user_id,
+                    self.build_login_packet(session),
+                )
+                if len(res) == 0:
+                    raise RuntimeError("登录失败，响应为空")
+            except BaseException as e:
+                logger.opt(exception=False).error(f"{self.user_id}：登录失败，原因 {e}")
+                impl.disconnect()
+                raise
 
             # self._impl.key = decrypt.clac_encrypt_key(res, self.user_id)
+            self._impl = impl
             self._is_logged_in = True
             logger.info("成功进入游戏服务器")
-            login_client.disconnect()
 
     def logout(self) -> None:
         self._stop_reconnect()
@@ -171,8 +183,16 @@ class SeerGame:
         """连接断开回调，由传输层触发。"""
         self._is_logged_in = False
         logger.warning(f"{self.user_id}：连接已断开")
-        if self._reconnect_retries > 0 and self._password and self._login_server_url:
-            self._reconnect_task = asyncio.create_task(self._auto_reconnect())
+        self.schedule_reconnect()
+
+    def schedule_reconnect(self) -> None:
+        """触发自动重连。若重连任务已在运行或未启用重连则跳过。"""
+        if self._reconnect_retries <= 0:
+            return
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            logger.debug(f"{self.user_id}：重连任务已在运行，跳过")
+            return
+        self._reconnect_task = asyncio.create_task(self._auto_reconnect())
 
     async def _auto_reconnect(self) -> None:
         """带指数退避的游戏级自动重连，重新执行完整登录流程。"""
@@ -331,6 +351,22 @@ class SeerGame:
             return bytes.fromhex(session)
         except ValueError as exc:
             raise ValueError("session 格式错误") from exc
+
+    @staticmethod
+    async def _fetch_server_notice_text() -> str | None:
+        """获取服务器停服维护公告文本，若没有则返回None，一般来说如果返回了文本则表示服务器正在维护"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get("https://unity-notice.61.com/unity_notice/")
+            resp.raise_for_status()
+            data = resp.json()
+
+        for item in data:
+            if item["type"] == 3:
+                text = item["text"]
+                # 需要删除所有标签
+                text = re.sub(r"<[^>]*>", "", text)
+                return text.replace("\\n", "\n")
+        return None
 
     @staticmethod
     def parse_jsonp(response_text: str, expected_callback: str | None = None) -> dict:

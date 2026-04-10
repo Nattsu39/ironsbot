@@ -41,9 +41,19 @@ class ClientManager:
             reconnect_delay=reconnect_delay,
             reconnect_delay_max=reconnect_delay_max,
         )
-        await game.login()
         self._client = game
-        logger.info(f"无头客户端已登录，米米号: {user_id}")
+        try:
+            await game.login()
+            logger.info(f"无头客户端已登录，米米号: {user_id}")
+        except Exception:
+            if reconnect_retries > 0:
+                logger.opt(exception=True).warning(
+                    "无头客户端初始登录失败，将尝试自动重连"
+                )
+                game.schedule_reconnect()
+            else:
+                self._client = None
+                raise
         return game
 
     def shutdown(self) -> None:
