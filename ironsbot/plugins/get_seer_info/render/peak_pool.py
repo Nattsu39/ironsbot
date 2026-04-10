@@ -9,6 +9,7 @@ from ..depends.image import ElementTypeImageGetter, PetHeadImageGetter
 from ._common import TEMPLATES_PATH, to_data_uri
 
 TEMPLATE_PATH = TEMPLATES_PATH / "peak_pool"
+SHARED_PATH = TEMPLATES_PATH / "_shared"
 
 CELL_WIDTH = 100 + 2 * 2  # pet-cell width + border
 CELL_GAP = 10
@@ -87,7 +88,7 @@ async def render_peak_pool(
     max_width = grid_width + POOL_OVERHEAD + CONTAINER_PADDING
 
     return await template_to_pic(
-        template_path=TEMPLATE_PATH,
+        template_path=[TEMPLATE_PATH, SHARED_PATH],
         template_name="template.html",
         templates={
             "pools": pool_dicts,
