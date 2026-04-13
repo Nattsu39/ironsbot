@@ -5,13 +5,14 @@ from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
-from seerapi_models import GemCategoryORM, MintmarkClassCategoryORM, MintmarkORM
+from seerapi_models import GemCategoryORM, MintmarkClassCategoryORM, MintmarkORM, PetORM
 from seerapi_models.mintmark import AbilityPartORM, SkillPartORM, UniversalPartORM
 
 from ironsbot.plugins.get_seer_info.depends.db import (
     GemCategoryDataGetter,
     GetGemCategoryData,
 )
+from ironsbot.utils import build_sub_line
 from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import (
@@ -88,6 +89,10 @@ def _fmt_attr(label: str, value: float, col_width: int = 8) -> str:
     return text + "\u2007" * max(col_width - display_len, 1)
 
 
+def _build_pet_bind(pet: PetORM) -> str:
+    return f"{pet.name}（{pet.id}）"
+
+
 async def build_mintmark_message(mintmark: MintmarkORM) -> MessageFactory:
     msg = MessageFactory()
     part = mintmark.ability_part or mintmark.skill_part or mintmark.universal_part
@@ -97,10 +102,9 @@ async def build_mintmark_message(mintmark: MintmarkORM) -> MessageFactory:
     if mintmark.pet:
         if len(mintmark.pet) > 1:
             msg += "绑定精灵：\n"
-            for pet in mintmark.pet:
-                msg += f" ↳ {pet.name}（{pet.id}）\n"
+            msg += build_sub_line(texts=[_build_pet_bind(pet) for pet in mintmark.pet])
         else:
-            msg += f"绑定精灵：{mintmark.pet[0].name}（{mintmark.pet[0].id}）\n"
+            msg += f"绑定精灵：{_build_pet_bind(mintmark.pet[0])}\n"
     if isinstance(part, AbilityPartORM):
         attr = part.max_attr_value.to_model()
     elif isinstance(part, UniversalPartORM):

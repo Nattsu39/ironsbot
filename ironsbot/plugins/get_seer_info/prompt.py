@@ -9,6 +9,8 @@ from nonebot_plugin_saa import MessageFactory
 from seerapi_models.build_model import BaseResModel
 from typing_extensions import NamedTuple
 
+from ironsbot.utils import build_sub_line
+
 from .depends import SeerAPISession
 from .depends.db import Getter, SQLModelSession
 
@@ -53,9 +55,11 @@ class Prompt(Generic[T]):
         msg = MessageFactory()
         msg += self.title
         for index, item in enumerate(self.items, start=1):
+            text = f"{index}. {item.name}（{item.desc}）"
             if item.is_sub_prompt:
-                msg += " ↳ "
-            msg += f"{index}. {item.name}（{item.desc}）\n"
+                msg += build_sub_line(texts=[text])
+            else:
+                msg += f"{text}\n"
         msg += "\n💬 输入序号选择 · 输入 0 退出"
 
         return msg
