@@ -8,12 +8,14 @@ from nonebot import logger, require
 from nonebot.matcher import Matcher
 from nonebot.params import Depends
 from seerapi_models import (
+    EquipORM,
     GemCategoryORM,
     GemORM,
     MintmarkClassCategoryORM,
     MintmarkORM,
     PetORM,
     PetSkinORM,
+    SuitORM,
 )
 from seerapi_models.build_model import BaseResModel
 from sqlalchemy.exc import OperationalError
@@ -326,3 +328,25 @@ GemCategoryDataGetter = Getter(
 
 def GetGemCategoryData() -> Any:
     return Depends(GemCategoryDataGetter)
+
+
+SuitDataGetter = Getter(
+    SuitORM,
+    IdResolver(SuitORM),
+    NameResolver(SuitORM),
+)
+
+
+def GetSuitData() -> Any:
+    return Depends(SuitDataGetter)
+
+
+EquipDataGetter = Getter(
+    EquipORM,
+    IdResolver(EquipORM),
+    NameResolver(EquipORM),
+)
+
+
+def GetEquipData() -> Any:
+    return Depends(EquipDataGetter)
