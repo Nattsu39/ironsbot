@@ -41,3 +41,15 @@ AvatarFrameImageGetter = GetImage(
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/avatar/frame/{}.png",
 )
 AvatarFrameImage = Depends(AvatarFrameImageGetter)
+
+SuitImageGetter = GetImage(
+    "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/item/cloth/suiticon/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/item/cloth/suiticon/{}.png",
+)
+SuitImage = Depends(SuitImageGetter)
+
+EquipImageGetter = GetImage(
+    "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/item/cloth/prev/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/item/cloth/prev/{}.png",
+)
+EquipImage = Depends(EquipImageGetter)
