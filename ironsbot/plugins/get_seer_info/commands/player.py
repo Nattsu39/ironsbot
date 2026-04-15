@@ -2,7 +2,6 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import NoReturn
 
-from nonebot.adapters import Bot
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
@@ -81,13 +80,16 @@ def _format_player_info(
 
 @player_matcher.handle()
 async def handle_player(
-    matcher: Matcher, state: T_State, bot: Bot, game: SeerGame = GameClient
+    matcher: Matcher, state: T_State, game: SeerGame = GameClient
 ) -> NoReturn:
     player_id: str = state[BOT_COMMAND_ARG_KEY]
     if not player_id.isdigit():
         raise FinishedException
-
     uid = int(player_id)
+
+    if not (50000 <= uid <= 2000000000):
+        await matcher.finish("❌ 米米号范围必须在 50000~2000000000 之间！")
+
     try:
         user_info, more_info = await asyncio.gather(
             game.get_user_info(uid),

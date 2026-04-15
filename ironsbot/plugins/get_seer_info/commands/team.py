@@ -38,12 +38,17 @@ def _format_team_info(info: SimpleTeamInfo) -> str:
 async def handle_team(
     matcher: Matcher, state: T_State, game: SeerGame = GameClient
 ) -> NoReturn:
-    team_id: str = state[BOT_COMMAND_ARG_KEY]
-    if not team_id.isdigit():
+    arg: str = state[BOT_COMMAND_ARG_KEY]
+    if not arg.isdigit():
         raise FinishedException
 
+    team_id = int(arg)
+    if not (100000 <= team_id <= 2000000000):
+        await matcher.finish("❌ 战队ID范围必须在 100000~2000000000 之间！")
+
     try:
-        team_info = await game.get_team_info(int(team_id))
+        team_info = await game.get_team_info(team_id)
     except SocketRecvError:
         await matcher.finish("❌ 查询失败！")
+
     await matcher.finish(_format_team_info(team_info))
