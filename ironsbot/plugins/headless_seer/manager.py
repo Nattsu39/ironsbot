@@ -2,6 +2,7 @@ from typing import Final
 
 from nonebot import logger
 
+from .exception import NotLoggedInError
 from .game import SeerGame
 
 
@@ -16,9 +17,9 @@ class ClientManager:
         self._client: SeerGame | None = None
 
     def get_client(self) -> SeerGame:
-        """获取已登录的游戏客户端，未登录时抛出 RuntimeError。"""
+        """获取已登录的游戏客户端，未登录时抛出 NotLoggedInError。"""
         if self._client is None or not self._client.is_logged_in:
-            raise RuntimeError("无头客户端尚未登录")
+            raise NotLoggedInError("无头客户端尚未登录")
         return self._client
 
     async def login(

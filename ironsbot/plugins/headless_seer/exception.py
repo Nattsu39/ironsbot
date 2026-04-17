@@ -10,6 +10,9 @@ class ConnectError(Exception): ...
 class ClientNotInitializedError(Exception): ...
 
 
+class NotLoggedInError(Exception): ...
+
+
 class SocketRecvError(Exception):
     def __init__(
         self,
