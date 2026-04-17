@@ -1,4 +1,4 @@
-from nonebot.adapters import Bot, MessageTemplate
+from nonebot.adapters import Event
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.params import Depends
@@ -12,10 +12,9 @@ from ironsbot.utils.rule import no_reply, startswith_or_endswith
 from ..depends import GetPetData, GetPetSkinData, PetBodyImageGetter, PetDataGetter
 from ..group import matcher_group
 from ..prompt import (
-    PROMPT_STATE_KEY,
     Prompt,
     PromptItem,
-    create_prompt_got_handler,
+    enter_prompt,
     simple_prompt_resolver,
 )
 from ..render import render_pet_info
@@ -72,12 +71,11 @@ def _create_prompt_items(
 async def handle_pet_image(
     matcher: Matcher,
     state: T_State,
-    bot: Bot,
+    event: Event,
     arg: str = Depends(parse_string_arg),
     pets: tuple[PetORM, ...] = GetPetData(),
     skins: tuple[PetSkinORM, ...] = GetPetSkinData(),
 ) -> None:
-    _name_set: set[str] = set()
     items: list[PromptItem[int]] = _create_prompt_items(pets, skins)
 
     if not items:
@@ -96,12 +94,8 @@ async def handle_pet_image(
 
         await matcher.finish(f"重名超过{PROMPT_MAX_ITEMS}个，请重新检索关键词！")
 
-    prompt = Prompt(
-        title="请问你想查询的立绘是……",
-        items=items,
-    )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
+    prompt = Prompt(title="请问你想查询的立绘是……", items=items)
+    await enter_prompt(matcher, event, state, prompt, pet_image_resolver)
 
 
 async def build_pet_image_message(args: PromptItem[int]) -> MessageFactory:
@@ -114,13 +108,7 @@ async def build_pet_image_message(args: PromptItem[int]) -> MessageFactory:
 
 async def pet_image_resolver(item: PromptItem[int], _1: Matcher, _2: object) -> None:
     msg = await build_pet_image_message(item)
-    await msg.finish()
-
-
-PET_IMAGE_GOT_KEY = "pet_image"
-pet_image_matcher.got(PET_IMAGE_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(PET_IMAGE_GOT_KEY, pet_image_resolver)
-)
+    await msg.send()
 
 
 # ============ 精灵信息卡 ============
@@ -138,7 +126,7 @@ pet_info_matcher = matcher_group.on_message(
 async def handle_pet_info(
     matcher: Matcher,
     state: T_State,
-    bot: Bot,
+    event: Event,
     arg: str = Depends(parse_string_arg),
     pets: tuple[PetORM, ...] = GetPetData(),
 ) -> None:
@@ -164,8 +152,13 @@ async def handle_pet_info(
             PromptItem(name=pet.name, desc=str(pet.id), value=pet.id) for pet in pets
         ],
     )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
+    await enter_prompt(
+        matcher,
+        event,
+        state,
+        prompt,
+        simple_prompt_resolver(PetDataGetter, build_pet_info_message, "精灵"),
+    )
 
 
 async def build_pet_info_message(pet: PetORM) -> MessageFactory:
@@ -173,12 +166,3 @@ async def build_pet_info_message(pet: PetORM) -> MessageFactory:
     msg = MessageFactory()
     msg += Image(pic_bytes)
     return msg
-
-
-PET_INFO_GOT_KEY = "pet_info"
-pet_info_matcher.got(PET_INFO_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(
-        PET_INFO_GOT_KEY,
-        simple_prompt_resolver(PetDataGetter, build_pet_info_message, "精灵"),
-    )
-)

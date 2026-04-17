@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from nonebot.adapters import Bot, MessageTemplate
+from nonebot.adapters import Event
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
@@ -23,10 +23,9 @@ from ..depends import (
 )
 from ..group import matcher_group
 from ..prompt import (
-    PROMPT_STATE_KEY,
     Prompt,
     PromptItem,
-    create_prompt_got_handler,
+    enter_prompt,
     simple_prompt_resolver,
 )
 
@@ -53,7 +52,7 @@ def _deduplicate(mintmarks: Iterable[MintmarkORM]) -> tuple[MintmarkORM, ...]:
 async def handle_mintmark(
     matcher: Matcher,
     state: T_State,
-    bot: Bot,
+    event: Event,
     mintmarks: tuple[MintmarkORM, ...] = GetMintmarkData(),
     classes: tuple[MintmarkClassCategoryORM, ...] = GetMintmarkClassData(),
 ) -> None:
@@ -78,8 +77,13 @@ async def handle_mintmark(
             for mintmark in mintmarks
         ],
     )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
+    await enter_prompt(
+        matcher,
+        event,
+        state,
+        prompt,
+        simple_prompt_resolver(MintmarkDataGetter, build_mintmark_message, "刻印"),
+    )
 
 
 def _fmt_attr(label: str, value: float, col_width: int = 8) -> str:
@@ -134,15 +138,6 @@ async def build_mintmark_message(mintmark: MintmarkORM) -> MessageFactory:
     return msg
 
 
-MINTMARK_GOT_KEY = "mintmark"
-mintmark_matcher.got(MINTMARK_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(
-        MINTMARK_GOT_KEY,
-        simple_prompt_resolver(MintmarkDataGetter, build_mintmark_message, "刻印"),
-    )
-)
-
-
 gem_matcher = matcher_group.on_message(rule=startswith_or_endswith("宝石") & no_reply())
 
 
@@ -150,7 +145,7 @@ gem_matcher = matcher_group.on_message(rule=startswith_or_endswith("宝石") & n
 async def handle_gem(
     matcher: Matcher,
     state: T_State,
-    bot: Bot,
+    event: Event,
     categories: tuple[GemCategoryORM, ...] = GetGemCategoryData(),
 ) -> None:
     if not categories:
@@ -174,8 +169,13 @@ async def handle_gem(
             for category in categories
         ],
     )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
+    await enter_prompt(
+        matcher,
+        event,
+        state,
+        prompt,
+        simple_prompt_resolver(GemCategoryDataGetter, build_gem_message, "宝石"),
+    )
 
 
 async def build_gem_message(category: GemCategoryORM) -> MessageFactory:
@@ -187,12 +187,3 @@ async def build_gem_message(category: GemCategoryORM) -> MessageFactory:
         gem_info_list.append(f"【Lv.{gem.level}】 {effect}")
     msg += "\n".join(gem_info_list)
     return msg
-
-
-GEM_GOT_KEY = "gem"
-gem_matcher.got(GEM_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(
-        GEM_GOT_KEY,
-        simple_prompt_resolver(GemCategoryDataGetter, build_gem_message, "宝石"),
-    )
-)

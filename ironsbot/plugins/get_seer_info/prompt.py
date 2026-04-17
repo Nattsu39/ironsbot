@@ -2,14 +2,23 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, cast, overload
 
+from nonebot.adapters import Event
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
+from nonebot.message import run_preprocessor
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
 from seerapi_models.build_model import BaseResModel
 from typing_extensions import NamedTuple
 
 from ironsbot.utils import build_sub_line
+from ironsbot.utils.matcher import (
+    enter_prompt_loop as _enter_prompt_loop,
+)
+from ironsbot.utils.matcher import (
+    prompt_session_manager,
+    reject_with_rule,
+)
 
 from .depends import SeerAPISession
 from .depends.db import Getter, SQLModelSession
@@ -31,7 +40,6 @@ class Prompt(Generic[T]):
     at_user_id: int | None = None
 
     def __post_init__(self) -> None:
-        # 如果title不是以换行符结尾，则添加换行符
         if not self.title.endswith("\n"):
             self.title = self.title + "\n"
 
@@ -51,16 +59,15 @@ class Prompt(Generic[T]):
         except IndexError:
             return None
 
-    def build_message(self) -> MessageFactory:
-        msg = MessageFactory()
-        msg += self.title
+    def build_message(self) -> str:
+        msg = self.title
         for index, item in enumerate(self.items, start=1):
             text = f"{index}. {item.name}（{item.desc}）"
             if item.is_sub_prompt:
                 msg += build_sub_line(texts=[text])
             else:
                 msg += f"{text}\n"
-        msg += "\n💬 输入序号选择 · 输入 0 退出"
+        msg += "\n💬 输入序号选择 · 输入 0 退出（现在支持连续选择咯，快来试试吧~）"
 
         return msg
 
@@ -70,44 +77,80 @@ _M = TypeVar("_M", bound=BaseResModel)
 PROMPT_STATE_KEY = "prompt"
 
 
-def create_prompt_got_handler(
-    got_key: str,
-    resolver: Callable[[Any, Matcher, SQLModelSession], Awaitable[None]],
-) -> Callable[[Matcher, T_State, SeerAPISession], Awaitable[None]]:
-    """为 ``matcher.got()`` 创建处理 Prompt 选择的 handler。
+def _is_digit_input(event: Event) -> bool:
+    """只匹配纯数字消息（含 ``"0"``），用于限制临时 Matcher 的触发范围。"""
+    return event.get_plaintext().strip().isdigit()
 
-    工厂负责 Prompt 选择的通用逻辑（解析输入、退出、查找值），
-    业务逻辑由 ``resolver`` 回调处理。
+
+# ── run_preprocessor：任何 priority > 0 的 matcher 运行前自动失效旧 prompt ──
+
+
+@run_preprocessor
+async def _invalidate_prompt_on_command(matcher: Matcher, event: Event) -> None:
+    if matcher.priority > 0:
+        prompt_session_manager.invalidate(event.get_session_id())
+
+
+# ── 公开 API ──
+
+
+async def enter_prompt(
+    matcher: Matcher,
+    event: Event,
+    state: T_State,
+    prompt: "Prompt[Any]",
+    resolver: Callable[[Any, Matcher, SQLModelSession], Awaitable[None]],
+) -> None:
+    """发送 Prompt 并进入选择循环（替代 ``matcher.got``）。
+
+    创建一个带版本化数字 Rule 的临时 Matcher，
+    只匹配数字输入，其余消息正常传播给其他 Matcher。
+    当新命令触发时，版本号递增使旧 prompt 自动失效。
+
+    在 ``handle()`` 末尾调用，本函数始终 raise ``FinishedException``。
 
     Args:
-        got_key: 与 ``matcher.got(key)`` 一致的 key，
-            用于从 matcher 中取出用户输入的消息。
-        resolver: 异步回调
-            ``(item, matcher, session) -> None``，
-            接收用户选择的 ``PromptItem``、当前
-            Matcher 和数据库会话。回调应自行调用
-            ``matcher.finish()`` 发送回复。
-            可使用 ``simple_prompt_resolver`` 快速创建。
-
-    用法::
-
-        matcher.got("key", prompt=MessageTemplate("{prompt_message}"))(
-            create_prompt_got_handler("key", my_resolver)
-        )
+        matcher: 当前 Matcher 实例。
+        event: 当前事件。
+        state: 当前会话 state（会存入 prompt 数据）。
+        prompt: Prompt 实例。
+        resolver: 选择处理回调，签名
+            ``(item, matcher, session) -> None``。
     """
+    state[PROMPT_STATE_KEY] = prompt
+    session_id = event.get_session_id()
+    version = prompt_session_manager.acquire(session_id)
+    rule = prompt_session_manager.make_rule(session_id, version, _is_digit_input)
+
+    handler = _create_selection_handler(resolver, session_id, version)
+
+    await _enter_prompt_loop(
+        matcher,
+        handlers=[handler],
+        rule=rule,
+        prompt=prompt.build_message(),
+    )
+
+
+def _create_selection_handler(
+    resolver: Callable[[Any, Matcher, SQLModelSession], Awaitable[None]],
+    session_id: str,
+    version: int,
+) -> Callable[..., Awaitable[None]]:
+    """创建选择循环 handler（从 event 读取输入，不依赖 got）。"""
 
     async def _handler(
         matcher: Matcher,
+        event: Event,
         state: T_State,
         session: SeerAPISession,
     ) -> None:
         if PROMPT_STATE_KEY not in state:
-            raise ValueError(f"Prompt not found in state: {state}")
-
-        if (arg := matcher.get_arg(got_key)) is None:
             raise FinishedException
 
-        if (key_text := arg.extract_plain_text()) == "0":
+        key_text = event.get_plaintext().strip()
+
+        if key_text == "0":
             await matcher.finish("❌已退出查询")
 
         if not key_text.isdigit():
@@ -115,9 +158,12 @@ def create_prompt_got_handler(
 
         prompt = cast("Prompt[Any]", state[PROMPT_STATE_KEY])
         if (item := prompt.get_item(int(key_text))) is None:
-            raise FinishedException
+            await matcher.finish("⚠️序号超出范围，已退出选择")
 
         await resolver(item, matcher, session)
+
+        rule = prompt_session_manager.make_rule(session_id, version, _is_digit_input)
+        await reject_with_rule(matcher, rule)
 
     return _handler
 
@@ -127,7 +173,7 @@ def simple_prompt_resolver(
     message_builder: Callable[[_M], Awaitable[MessageFactory]],
     entity_name: str,
 ) -> Callable[..., Awaitable[None]]:
-    """为 ``create_prompt_got_handler`` 创建简单的解析回调。
+    """为 ``enter_prompt`` 创建简单的解析回调。
 
     适用于 Prompt 值为数据库主键 ID 的常见场景：
     通过 ``data_getter`` 获取对象，
@@ -150,9 +196,9 @@ def simple_prompt_resolver(
         obj = data_getter.get(session, item.value)
         if not obj:
             await matcher.finish(
-                f"❌未找到{entity_name} {item.value}（这是一个bug，请反馈给开发者）"
+                message=f"❌未找到{entity_name} {item.value}（这是一个bug，请反馈给开发者）"
             )
         msg = await message_builder(obj)
-        await msg.finish()
+        await msg.send()
 
     return _resolver

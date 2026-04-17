@@ -1,4 +1,4 @@
-from nonebot.adapters import Bot, MessageTemplate
+from nonebot.adapters import Bot, Event
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
@@ -12,10 +12,9 @@ from ..depends.db import EquipDataGetter, GetEquipData, GetSuitData, SuitDataGet
 from ..depends.image import EquipImageGetter, SuitImageGetter
 from ..group import matcher_group
 from ..prompt import (
-    PROMPT_STATE_KEY,
     Prompt,
     PromptItem,
-    create_prompt_got_handler,
+    enter_prompt,
     simple_prompt_resolver,
 )
 
@@ -62,6 +61,7 @@ async def handle_suit(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
+    event: Event,
     suits: tuple[SuitORM, ...] = GetSuitData(),
 ) -> None:
     if not suits:
@@ -81,17 +81,10 @@ async def handle_suit(
             for suit in suits
         ],
     )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
-
-
-SUIT_GOT_KEY = "suit"
-suit_matcher.got(SUIT_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(
-        SUIT_GOT_KEY,
+    await enter_prompt(
+        matcher, event, state, prompt,
         simple_prompt_resolver(SuitDataGetter, _build_suit_message, "套装"),
     )
-)
 
 
 equip_matcher = matcher_group.on_message(
@@ -117,6 +110,7 @@ async def handle_equip(
     matcher: Matcher,
     state: T_State,
     bot: Bot,
+    event: Event,
     equips: tuple[EquipORM, ...] = GetEquipData(),
 ) -> None:
     if not equips:
@@ -136,14 +130,7 @@ async def handle_equip(
             for equip in equips
         ],
     )
-    state[PROMPT_STATE_KEY] = prompt
-    state["prompt_message"] = await prompt.build_message().build(bot)
-
-
-EQUIP_GOT_KEY = "equip"
-equip_matcher.got(EQUIP_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
-    create_prompt_got_handler(
-        EQUIP_GOT_KEY,
+    await enter_prompt(
+        matcher, event, state, prompt,
         simple_prompt_resolver(EquipDataGetter, _build_equip_message, "装备部件"),
     )
-)
