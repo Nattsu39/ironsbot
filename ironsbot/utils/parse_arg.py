@@ -1,4 +1,5 @@
 from nonebot.consts import CMD_ARG_KEY, PREFIX_KEY
+from nonebot.exception import FinishedException
 from nonebot.typing import T_State
 
 from .rule import BOT_COMMAND_ARG_KEY
@@ -17,3 +18,11 @@ def parse_string_arg(state: T_State) -> str:
         return stripped
 
     return ""
+
+
+def parse_int_arg(state: T_State) -> int:
+    arg = parse_string_arg(state)
+    if not arg.isdigit():
+        raise FinishedException
+
+    return int(arg)

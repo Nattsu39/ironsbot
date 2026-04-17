@@ -1,13 +1,13 @@
 from typing import NoReturn
 
-from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
-from nonebot.typing import T_State
+from nonebot.params import Depends
 
 from ironsbot.plugins.headless_seer.exception import SocketRecvError
 from ironsbot.plugins.headless_seer.game import SeerGame
 from ironsbot.plugins.headless_seer.packets.team import SimpleTeamInfo
-from ironsbot.utils.rule import BOT_COMMAND_ARG_KEY, no_reply, startswith_or_endswith
+from ironsbot.utils.parse_arg import parse_int_arg
+from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import GameClient
 from ..group import matcher_group
@@ -36,13 +36,8 @@ def _format_team_info(info: SimpleTeamInfo) -> str:
 
 @team_matcher.handle()
 async def handle_team(
-    matcher: Matcher, state: T_State, game: SeerGame = GameClient
+    matcher: Matcher, team_id: int = Depends(parse_int_arg), game: SeerGame = GameClient
 ) -> NoReturn:
-    arg: str = state[BOT_COMMAND_ARG_KEY]
-    if not arg.isdigit():
-        raise FinishedException
-
-    team_id = int(arg)
     if not (100000 <= team_id <= 2000000000):
         await matcher.finish("❌ 战队ID范围必须在 100000~2000000000 之间！")
 

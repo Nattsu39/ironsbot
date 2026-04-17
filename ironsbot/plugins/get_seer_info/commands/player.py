@@ -2,15 +2,15 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import NoReturn
 
-from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
-from nonebot.typing import T_State
+from nonebot.params import Depends
 
 from ironsbot.plugins.headless_seer.exception import SocketRecvError
 from ironsbot.plugins.headless_seer.game import PeakData, SeerGame
 from ironsbot.plugins.headless_seer.packets.user import MoreInfo, UserInfo
 from ironsbot.plugins.headless_seer.utils import split_bits
-from ironsbot.utils.rule import BOT_COMMAND_ARG_KEY, no_reply, startswith_or_endswith
+from ironsbot.utils.parse_arg import parse_int_arg
+from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import GameClient
 from ..group import matcher_group
@@ -80,20 +80,17 @@ def _format_player_info(
 
 @player_matcher.handle()
 async def handle_player(
-    matcher: Matcher, state: T_State, game: SeerGame = GameClient
+    matcher: Matcher,
+    player_id: int = Depends(parse_int_arg),
+    game: SeerGame = GameClient,
 ) -> NoReturn:
-    player_id: str = state[BOT_COMMAND_ARG_KEY]
-    if not player_id.isdigit():
-        raise FinishedException
-    uid = int(player_id)
-
-    if not (50000 <= uid <= 2000000000):
+    if not (50000 <= player_id <= 2000000000):
         await matcher.finish("❌ 米米号范围必须在 50000~2000000000 之间！")
 
     try:
         user_info, more_info = await asyncio.gather(
-            game.get_user_info(uid),
-            game.get_more_user_info(uid),
+            game.get_user_info(player_id),
+            game.get_more_user_info(player_id),
         )
     except SocketRecvError:
         await matcher.finish("❌ 查询失败！")
@@ -107,14 +104,14 @@ async def handle_player(
             team_name = str(user_info.team_id)
     try:
         peak_data, peak_data_wild, peak_data_expert = await asyncio.gather(
-            game.get_user_peak_data(uid),
-            game.get_user_peak_wild_data(uid),
-            game.get_user_peak_expert_data(uid),
+            game.get_user_peak_data(player_id),
+            game.get_user_peak_wild_data(player_id),
+            game.get_user_peak_expert_data(player_id),
         )
     except SocketRecvError:
         await matcher.finish("❌ 巅峰数据查询失败！")
 
-    is_online = (await game.get_user_online_info(uid)) is not None
+    is_online = (await game.get_user_online_info(player_id)) is not None
     await matcher.finish(
         _format_player_info(
             user_info,
