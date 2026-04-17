@@ -5,24 +5,28 @@ from ironsbot.utils.image import GetImage
 PetBodyImageGetter = GetImage(
     "https://newseer.61.com/web/monster/body/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pet/body/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/pet/body/{}.png",
 )
 PetBodyImage = Depends(PetBodyImageGetter)
 
 PetHeadImageGetter = GetImage(
     "https://newseer.61.com/web/monster/head/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pet/head/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/pet/head/{}.png",
 )
 PetHeadImage = Depends(PetHeadImageGetter)
 
 MintmarkBodyImageGetter = GetImage(
     "https://newseer.61.com/web/countermark/icon/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/countermark/icon/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/countermark/icon/{}.png",
 )
 MintmarkBodyImage = Depends(MintmarkBodyImageGetter)
 
 ElementTypeImageGetter = GetImage(
     "https://newseer.61.com/web/PetType/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pettype/{}.png",
+    "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/pettype/{}.png",
 )
 ElementTypeImage = Depends(ElementTypeImageGetter)
 
