@@ -2,6 +2,13 @@ import importlib
 import pkgutil
 
 from nonebot import logger
+from nonebot.matcher import Matcher
+from nonebot.message import run_postprocessor
+
+from ironsbot.plugins.db_sync.manager import db_manager
+from ironsbot.plugins.headless_seer.exception import SocketRecvError
+
+from ..depends.db import ErrorCodeGetter
 
 __all__ = []
 
@@ -15,3 +22,15 @@ for _, module_name, __ in pkgutil.iter_modules(__path__):
             continue
 
         __all__ += [module_name]  # noqa: PLE0604
+
+
+@run_postprocessor
+async def do_something(matcher: Matcher, exception: Exception | None):
+    if isinstance(exception, SocketRecvError):
+        sessions = next(db_manager.get_all_sessions())
+        result_code = exception.head.result
+        error_code = ErrorCodeGetter(sessions, str(result_code))
+        if error_code:
+            await matcher.finish(f"❌ 请求失败：{error_code[0].message}")
+        else:
+            await matcher.finish(f"❌ 请求失败，错误码：{result_code}")

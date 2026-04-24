@@ -87,13 +87,10 @@ async def handle_player(
     if not (50000 <= player_id <= 2000000000):
         await matcher.finish("❌ 米米号范围必须在 50000~2000000000 之间！")
 
-    try:
-        user_info, more_info = await asyncio.gather(
-            game.get_user_info(player_id),
-            game.get_more_user_info(player_id),
-        )
-    except SocketRecvError:
-        await matcher.finish("❌ 查询失败！")
+    user_info, more_info = await asyncio.gather(
+        game.get_user_info(player_id),
+        game.get_more_user_info(player_id),
+    )
 
     team_name = "无"
     if user_info.team_id > 0:
@@ -102,14 +99,12 @@ async def handle_player(
             team_name = team_info.name
         except SocketRecvError:
             team_name = str(user_info.team_id)
-    try:
-        peak_data, peak_data_wild, peak_data_expert = await asyncio.gather(
-            game.get_user_peak_data(player_id),
-            game.get_user_peak_wild_data(player_id),
-            game.get_user_peak_expert_data(player_id),
-        )
-    except SocketRecvError:
-        await matcher.finish("❌ 巅峰数据查询失败！")
+
+    peak_data, peak_data_wild, peak_data_expert = await asyncio.gather(
+        game.get_user_peak_data(player_id),
+        game.get_user_peak_wild_data(player_id),
+        game.get_user_peak_expert_data(player_id),
+    )
 
     is_online = (await game.get_user_online_info(player_id)) is not None
     await matcher.finish(

@@ -3,7 +3,6 @@ from typing import NoReturn
 from nonebot.matcher import Matcher
 from nonebot.params import Depends
 
-from ironsbot.plugins.headless_seer.exception import SocketRecvError
 from ironsbot.plugins.headless_seer.game import SeerGame
 from ironsbot.plugins.headless_seer.packets.team import SimpleTeamInfo
 from ironsbot.utils.parse_arg import parse_int_arg
@@ -41,9 +40,6 @@ async def handle_team(
     if not (100000 <= team_id <= 2000000000):
         await matcher.finish("❌ 战队ID范围必须在 100000~2000000000 之间！")
 
-    try:
-        team_info = await game.get_team_info(team_id)
-    except SocketRecvError:
-        await matcher.finish("❌ 查询失败！")
+    team_info = await game.get_team_info(team_id)
 
     await matcher.finish(_format_team_info(team_info))

@@ -9,6 +9,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import Depends
 from seerapi_models import (
     EquipORM,
+    ErrorCodeORM,
     GemCategoryORM,
     GemORM,
     MintmarkClassCategoryORM,
@@ -350,3 +351,12 @@ EquipDataGetter = Getter(
 
 def GetEquipData() -> Any:
     return Depends(EquipDataGetter)
+
+ErrorCodeGetter = Getter(
+    ErrorCodeORM,
+    IdResolver(ErrorCodeORM),
+)
+
+
+def GetErrorCodeData() -> Any:
+    return Depends(ErrorCodeGetter)
