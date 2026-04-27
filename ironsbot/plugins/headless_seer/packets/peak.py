@@ -6,7 +6,7 @@ from ..packet.packet import Deserializable
 
 
 class DailyRankInfo(Deserializable):
-    user_id: f.UInt
+    id: f.UInt
     score: f.Int
     nick: Annotated[str, f.Unicode[16]]
 

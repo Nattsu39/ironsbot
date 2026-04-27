@@ -17,6 +17,7 @@ from seerapi_models import (
     PetORM,
     PetSkinORM,
     SuitORM,
+    TitlePartORM,
 )
 from seerapi_models.build_model import BaseResModel
 from sqlalchemy.exc import OperationalError
@@ -263,6 +264,22 @@ class Getter(Generic[_T_Model]):
         return Getter(self.model, *self.resolvers, *other.resolvers)
 
 
+def from_id_get_name(
+    getter: Getter[_T_Model],
+    _id: int,
+    *,
+    sessions: AllSessions,
+) -> str:
+    if not (objs := getter(sessions, str(_id))):
+        return ""
+
+    obj = objs[0]
+    if (name := getattr(obj, "name", None)) is None:
+        raise ValueError(f"Model {getter.model.resource_name()} has no name attribute")
+
+    return name
+
+
 PetDataGetter = Getter(
     PetORM,
     IdResolver(PetORM),
@@ -351,6 +368,18 @@ EquipDataGetter = Getter(
 
 def GetEquipData() -> Any:
     return Depends(EquipDataGetter)
+
+
+TitleDataGetter = Getter(
+    TitlePartORM,
+    IdResolver(TitlePartORM),
+    NameResolver(TitlePartORM),
+)
+
+
+def GetTitleData() -> Any:
+    return Depends(TitleDataGetter)
+
 
 ErrorCodeGetter = Getter(
     ErrorCodeORM,

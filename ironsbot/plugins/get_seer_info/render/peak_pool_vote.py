@@ -1,8 +1,9 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, TypedDict
 
 from nonebot_plugin_htmlkit import template_to_pic
+
+from ironsbot.utils import time
 
 from ..depends.image import ElementTypeImageGetter, PetHeadImageGetter
 from ._common import TEMPLATES_PATH, to_data_uri
@@ -76,7 +77,7 @@ async def render_peak_pool_vote(pools: list[VotePoolInput]) -> bytes:
         rank_list = pool["content"].rank_list
         ranks: list[VoteRankDict] = []
         for i, info in enumerate(rank_list, 1):
-            pet = pet_map.get(info.user_id)
+            pet = pet_map.get(info.id)
             if pet is not None:
                 head_img = head_data_uris[str(pet.resource_id)]
                 type_icon = type_data_uris[pet.type.id]
@@ -88,7 +89,7 @@ async def render_peak_pool_vote(pools: list[VotePoolInput]) -> bytes:
             ranks.append(
                 {
                     "rank": i,
-                    "pet_id": info.user_id,
+                    "pet_id": info.id,
                     "name": name,
                     "score": info.score,
                     "head_img": head_img,
@@ -107,9 +108,7 @@ async def render_peak_pool_vote(pools: list[VotePoolInput]) -> bytes:
         template_name="template.html",
         templates={
             "pools": pool_dicts,
-            "generated_at": datetime.now(tz=timezone(timedelta(hours=8))).strftime(
-                "%Y-%m-%d %H:%M"
-            ),
+            "generated_at": time.now(tz=time.TZ_CN).strftime("%Y-%m-%d %H:%M"),
         },
         max_width=TABLE_WIDTH + CONTAINER_PADDING + 20,
         allow_refit=False,

@@ -4,24 +4,26 @@ import random
 import re
 import time
 from dataclasses import dataclass
+from enum import Enum
 from typing import NamedTuple, overload
 
 import httpx
 from nonebot import logger
 
+from ironsbot.plugins.headless_seer.packets.head import HeadInfo
+from ironsbot.plugins.headless_seer.packets.peak import DailyRankList
+
 from .command_id import COMMAND_ID
 from .core import SeerConnect, SeerEncryptConnect
 from .exception import ClientNotInitializedError
 from .packets import (
-    DailyRankList,
     MoreInfo,
     OnLineInfo,
     SimpleTeamInfo,
     UserInfo,
 )
-from .packets.head import HeadInfo
 from .packets.login import SessionPackct
-from .packets.peak import DailyRankParam
+from .packets.peak import DailyRankInfo, DailyRankParam
 from .type_hint import CommandID, SocketRecvPacketBody, T_Deserializable
 
 
@@ -35,6 +37,76 @@ class PeakData:
     current_score: int
     current_highest_score: int
     history_highest_score: int
+
+
+@dataclass(slots=True)
+class PeakItemData:
+    id: int
+    count: int
+    win: int
+    ban_count: int | None = None
+
+    @property
+    def win_rate(self) -> float:
+        if self.count == 0:
+            return 0
+        return round(self.win / self.count * 100, 2)
+
+
+class PeakType(Enum):
+    STANDARD = 1
+    WILD = 2
+    EXPERT = 3
+
+
+PEAK_TYPE_NAME_MAP = {
+    PeakType.STANDARD: "竞技",
+    PeakType.WILD: "狂野",
+    PeakType.EXPERT: "专家",
+}
+
+PEAK_PET_KEY_MAP = {
+    PeakType.STANDARD: (177, 93, 94),
+    PeakType.WILD: (185, 184, 183),
+    PeakType.EXPERT: (202, 201, 200),
+}
+
+PEAK_SUIT_KEY_MAP = {
+    PeakType.STANDARD: (173, 174),
+    PeakType.WILD: (186, 187),
+    PeakType.EXPERT: (203, 204),
+}
+
+PEAK_TITLE_KEY_MAP = {
+    PeakType.STANDARD: (175, 176),
+    PeakType.WILD: (188, 189),
+    PeakType.EXPERT: (205, 206),
+}
+
+
+PEAK_USER_KEY_MAP = {
+    PeakType.STANDARD: 120,
+    PeakType.WILD: 182,
+    PeakType.EXPERT: 199,
+}
+
+
+def _merge_win_and_count_rank(
+    win_body: DailyRankList,
+    count_body: DailyRankList,
+    *,
+    length: int = 10,
+) -> list[PeakItemData]:
+    dict_map = {item.id: item for item in win_body.rank_list}
+    items = [
+        PeakItemData(
+            id=item.id,
+            count=item.score,
+            win=dict_map[item.id].score if item.id in dict_map else 0,
+        )
+        for item in count_body.rank_list[:length]
+    ]
+    return sorted(items, key=lambda x: x.count, reverse=True)
 
 
 class SeerGame:
@@ -262,6 +334,71 @@ class SeerGame:
             DailyRankParam(key=192, sub_key=sub_key, start=0, end=29),
         )
         return body
+
+    async def get_peak_suit_rank(
+        self, sub_key: int, peak_type: PeakType
+    ) -> list[PeakItemData]:
+        count_key, win_key = PEAK_SUIT_KEY_MAP[peak_type]
+        count_body, win_body = await asyncio.gather(
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=count_key, sub_key=sub_key, start=0, end=19),
+            ),
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=win_key, sub_key=sub_key, start=0, end=19),
+            ),
+        )  # 胜场数
+        return _merge_win_and_count_rank(win_body[1], count_body[1])
+
+    async def get_peak_title_rank(
+        self, sub_key: int, peak_type: PeakType
+    ) -> list[PeakItemData]:
+        count_key, win_key = PEAK_TITLE_KEY_MAP[peak_type]
+        count_body, win_body = await asyncio.gather(
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=count_key, sub_key=sub_key, start=0, end=19),
+            ),
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=win_key, sub_key=sub_key, start=0, end=19),
+            ),
+        )
+        return _merge_win_and_count_rank(win_body[1], count_body[1])
+
+    async def get_peak_pet_rank(
+        self, sub_key: int, peak_type: PeakType
+    ) -> tuple[list[PeakItemData], DailyRankList]:
+        key_1, key_2, key_3 = PEAK_PET_KEY_MAP[peak_type]
+        win_body, count_body, ban_body = await asyncio.gather(
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=key_1, sub_key=sub_key, start=0, end=29),
+            ),
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=key_2, sub_key=sub_key, start=0, end=29),
+            ),
+            self.send_and_wait(
+                COMMAND_ID.GET_DAILY_RANK_INFO,
+                DailyRankParam(key=key_3, sub_key=sub_key, start=0, end=19),
+            ),
+        )
+        return (
+            _merge_win_and_count_rank(win_body[1], count_body[1], length=20),
+            ban_body[1],
+        )
+
+    async def get_peak_user_rank(
+        self, sub_key: int, peak_type: PeakType
+    ) -> list[DailyRankInfo]:
+        key = PEAK_USER_KEY_MAP[peak_type]
+        result: tuple[HeadInfo, DailyRankList] = await self.send_and_wait(
+            COMMAND_ID.GET_DAILY_RANK_INFO,
+            DailyRankParam(key=key, sub_key=sub_key, start=0, end=19),
+        )
+        return result[1].rank_list
 
     async def get_user_peak_expert_data(self, user_id: int) -> PeakData:
         result = await asyncio.gather(
