@@ -1,3 +1,5 @@
+from collections.abc import Awaitable, Callable
+
 from hishel.httpx import AsyncCacheClient
 from httpx import HTTPStatusError, RequestError
 from nonebot.params import Depends
@@ -18,13 +20,18 @@ async def create_image_segment_from_url(url: str) -> Image:
 
 
 class GetImage:
-    def __init__(self, *url_templates: str) -> None:
+    def __init__(
+        self,
+        *url_templates: str,
+        fallback: Callable[[Exception], Awaitable[bytes]] | None = None,
+    ) -> None:
         if not url_templates:
             raise ValueError("至少需要一个 URL 模板")
         self.url_templates = url_templates
+        self.fallback = fallback
 
     async def get_bytes(self, arg: str) -> bytes:
-        """获取图片原始字节，依次尝试所有 URL 模板，全部失败时抛出最后一个异常。"""
+        """获取图片原始字节，依次尝试所有 URL 模板。"""
         last_error: Exception | None = None
         for template in self.url_templates:
             url = template.format(arg)
@@ -33,7 +40,10 @@ class GetImage:
             except (HTTPStatusError, RequestError) as e:
                 last_error = e
                 continue
-        raise last_error or RuntimeError("所有 URL 均请求失败")
+        error = last_error or RuntimeError("所有 URL 均请求失败")
+        if self.fallback is not None:
+            return await self.fallback(error)
+        raise error
 
     async def get(self, arg: str) -> MessageSegmentFactory:
         last_error: Exception | None = None

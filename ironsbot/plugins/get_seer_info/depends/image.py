@@ -1,11 +1,24 @@
+from httpx import HTTPStatusError
 from nonebot.params import Depends
 
-from ironsbot.utils.image import GetImage
+from ironsbot.utils.image import GetImage, fetch_image_bytes
+
+
+async def _fallback_image(error: Exception) -> bytes:
+    if isinstance(error, HTTPStatusError):
+        code = error.response.status_code
+        reason = error.response.reason_phrase
+        text = f"{code} {reason}"
+    else:
+        text = "获取图片失败！"
+    return await fetch_image_bytes(f"https://dummyimage.com/300&text={text}")
+
 
 PetBodyImageGetter = GetImage(
     "https://newseer.61.com/web/monster/body/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pet/body/{}.png",
     "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/pet/body/{}.png",
+    fallback=_fallback_image,
 )
 PetBodyImage = Depends(PetBodyImageGetter)
 
@@ -13,6 +26,7 @@ PetHeadImageGetter = GetImage(
     "https://newseer.61.com/web/monster/head/{}.png",
     "https://cnb.cool/SeerAPI/seer-unity-assets/-/git/raw/main/newseer/assets/art/ui/assets/pet/head/{}.png",
     "https://raw.githubusercontent.com/SeerAPI/seer-unity-assets/refs/heads/main/newseer/assets/art/ui/assets/pet/head/{}.png",
+    fallback=_fallback_image,
 )
 PetHeadImage = Depends(PetHeadImageGetter)
 
