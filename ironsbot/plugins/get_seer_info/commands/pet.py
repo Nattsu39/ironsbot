@@ -79,7 +79,7 @@ async def handle_pet_image(
     items: list[PromptItem[int]] = _create_prompt_items(pets, skins)
 
     if not items:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的立绘或皮肤，请检查关键词后重试。" if arg else "请提供要查询的立绘或皮肤名称。")
 
     if len(items) == 1:
         msg = await build_pet_image_message(items[0])
@@ -131,7 +131,7 @@ async def handle_pet_info(
     pets: tuple[PetORM, ...] = GetPetData(),
 ) -> None:
     if not pets:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的精灵，请检查名称或ID后重试。" if arg else "请提供要查询的精灵名称或ID。")
 
     if len(pets) == 1:
         msg = await build_pet_info_message(pets[0])

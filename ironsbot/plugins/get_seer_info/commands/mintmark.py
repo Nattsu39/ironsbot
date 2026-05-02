@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from nonebot.adapters import Event
 from nonebot.exception import FinishedException
 from nonebot.matcher import Matcher
+from nonebot.params import Depends
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
 from seerapi_models import GemCategoryORM, MintmarkClassCategoryORM, MintmarkORM, PetORM
@@ -14,6 +15,7 @@ from ironsbot.plugins.get_seer_info.depends.db import (
     GetGemCategoryData,
 )
 from ironsbot.utils import build_sub_line
+from ironsbot.utils.parse_arg import parse_string_arg
 from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends import (
@@ -149,6 +151,7 @@ async def handle_mintmark(
     matcher: Matcher,
     state: T_State,
     event: Event,
+    arg: str = Depends(parse_string_arg),
     mintmarks: tuple[MintmarkORM, ...] = GetMintmarkData(),
     classes: tuple[MintmarkClassCategoryORM, ...] = GetMintmarkClassData(),
 ) -> None:
@@ -157,7 +160,7 @@ async def handle_mintmark(
     mintmarks = _deduplicate(mintmarks)
 
     if not mintmarks:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的刻印，请检查关键词后重试。" if arg else "请提供要查询的刻印名称。")
 
     if len(mintmarks) == 1:
         msg = await build_mintmark_message(mintmarks[0])
@@ -193,10 +196,11 @@ async def handle_gem(
     matcher: Matcher,
     state: T_State,
     event: Event,
+    arg: str = Depends(parse_string_arg),
     categories: tuple[GemCategoryORM, ...] = GetGemCategoryData(),
 ) -> None:
     if not categories:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的宝石，请检查关键词后重试。" if arg else "请提供要查询的宝石名称。")
 
     if len(categories) == 1:
         msg = await build_gem_message(categories[0])

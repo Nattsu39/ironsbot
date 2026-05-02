@@ -1,11 +1,13 @@
 from nonebot.adapters import Bot, Event
 from nonebot.matcher import Matcher
+from nonebot.params import Depends
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
 from nonebot_plugin_saa.abstract_factories import FinishedException
 from seerapi_models import EquipORM, SuitORM, TitlePartORM
 
 from ironsbot.utils import build_sub_line
+from ironsbot.utils.parse_arg import parse_string_arg
 from ironsbot.utils.rule import no_reply, startswith_or_endswith
 
 from ..depends.db import (
@@ -69,10 +71,11 @@ async def handle_suit(
     state: T_State,
     bot: Bot,
     event: Event,
+    arg: str = Depends(parse_string_arg),
     suits: tuple[SuitORM, ...] = GetSuitData(),
 ) -> None:
     if not suits:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的套装，请检查关键词后重试。" if arg else "请提供要查询的套装名称。")
 
     if len(suits) == 1:
         msg = await _build_suit_message(suits[0])
@@ -120,10 +123,11 @@ async def handle_equip(
     matcher: Matcher,
     state: T_State,
     event: Event,
+    arg: str = Depends(parse_string_arg),
     equips: tuple[EquipORM, ...] = GetEquipData(),
 ) -> None:
     if not equips:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的部件，请检查关键词后重试。" if arg else "请提供要查询的部件名称。")
 
     if len(equips) == 1:
         msg = await _build_equip_message(equips[0])
@@ -168,10 +172,11 @@ async def handle_title(
     matcher: Matcher,
     state: T_State,
     event: Event,
+    arg: str = Depends(parse_string_arg),
     titles: tuple[TitlePartORM, ...] = GetTitleData(),
 ) -> None:
     if not titles:
-        raise FinishedException
+        await matcher.finish(f"未找到与「{arg}」相关的称号，请检查关键词后重试。" if arg else "请提供要查询的称号名称。")
 
     if len(titles) == 1:
         msg = await _build_title_message(titles[0])
