@@ -54,7 +54,7 @@ def main() -> None:
         epilog=(
             "示例:\n"
             "  uv run python scripts/set_version.py 1.2.3\n"
-            "  uv run python scripts/set_version.py v1.2.3 --git-tag\n"
+            "  uv run python scripts/set_version.py 1.2.3 --git-tag\n"
             "\n"
             "--git-tag 应在已提交 pyproject.toml 与 __version__ 之后使用，使标签指向包含该版本的提交。"
         ),
