@@ -12,7 +12,7 @@
 > 
 > 本项目继承了西塔伦Bot的数据查询功能，不包含配置投稿/推荐功能，这些功能请查看[这个链接（目前还没有）]()获取更多信息。
 >
-> 本项目headless_seer插件的登录部分参考了 [@oldml](https://github.com/oldml) 的项目 [saixiaoxi](https://github.com/oldml/saixiaoxi) 在此表示感谢。
+> 本项目中headless_seer插件的session获取与登录数据包构建函数来源于 [@oldml](https://github.com/oldml) 的项目 [saixiaoxi](https://github.com/oldml/saixiaoxi)，在此表示感谢。
 
 ## 部署
 与西塔伦Bot不同，本项目不提供托管服务，用户需要自行部署。
