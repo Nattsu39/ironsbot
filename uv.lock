@@ -438,8 +438,8 @@ requires-dist = [
     { name = "nonebot2", extras = ["fastapi", "httpx"], specifier = ">=2.4.4" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "seerapi", specifier = ">=105.1.0" },
-    { name = "seerapi-models", specifier = ">=105.1.0" },
+    { name = "seerapi", specifier = ">=106.1.0" },
+    { name = "seerapi-models", specifier = ">=106.1.0" },
 ]
 provides-extras = ["dev"]
 
@@ -1383,7 +1383,7 @@ wheels = [
 
 [[package]]
 name = "seerapi"
-version = "105.1.0"
+version = "106.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hishel", extra = ["httpx"] },
@@ -1391,22 +1391,22 @@ dependencies = [
     { name = "seerapi-models" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/e2/e15c951fc7f53d88e3631ffc738a2dcee0e4f6d6636ca803af0aab71c42b/seerapi-105.1.0.tar.gz", hash = "sha256:f607825e7a3bbcd276d71a8814d124ddae42e1f270e5de3380ae2e3c6f8851c0", size = 16482, upload-time = "2026-04-23T07:38:43.942Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/54/9d7ea49e53cff69d84c0425788e0d8858a60a697bc46120f191c4b9a4dee/seerapi-106.1.0.tar.gz", hash = "sha256:437f86059217d16c1413cb0d0bb47fc85ff24a1cbe3252458b91d37241a7e92b", size = 11548, upload-time = "2026-05-10T04:05:02.958Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/80/e6d23f2702452b225c381bde2497fcd04dfdfd0f6d1551242eddd9829dc6/seerapi-105.1.0-py3-none-any.whl", hash = "sha256:d579e9618e7ad85d77bc40a1044a5723d36f324cf52b876b3d3d31156d5af9a2", size = 14300, upload-time = "2026-04-23T07:38:42.827Z" },
+    { url = "https://files.pythonhosted.org/packages/95/1b/2754839be04c7da242867210c4fea63992e87ac16256f14178831e33742b/seerapi-106.1.0-py3-none-any.whl", hash = "sha256:db45c6ccdb75c09ee5ee0124a06e8b1cccfb1c2b5e721efefa0354a9ef7a0993", size = 13658, upload-time = "2026-05-10T04:05:02.076Z" },
 ]
 
 [[package]]
 name = "seerapi-models"
-version = "105.1.0"
+version = "106.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlmodel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/c1/1803deec5feae0bf8e81469f2f0cc67c8dd4631b995f573786880cdc2891/seerapi_models-105.1.0.tar.gz", hash = "sha256:7e9b6d4f0dc2b3e87d98d7c5badf046c8bb7fe2993e6890c48b8edfc9cce8eb9", size = 29414, upload-time = "2026-04-20T06:38:00.652Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/92/b91e84424c83faf4b91e72293701aeb5b76e70f21ae576a259e8fb607cb8/seerapi_models-106.1.0.tar.gz", hash = "sha256:f8a9036760d52c416361ea3251eba27846e1ea275314e58725e223f16e36622d", size = 29828, upload-time = "2026-05-10T04:05:05.165Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/1c/72040c62a8d40283bf8c2ace579ff6abcce36c018571b48570f2d691f3c1/seerapi_models-105.1.0-py3-none-any.whl", hash = "sha256:76296211fd614731ef1dec3f8121568e8b3d4f1cccbaf2c9b70fc42a8509847c", size = 45754, upload-time = "2026-04-20T06:38:01.703Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/8b/2d1b441bf78d3d65068444c04b8affb979e86b8f65dd5a167032427a1cfc/seerapi_models-106.1.0-py3-none-any.whl", hash = "sha256:ef385e3dbe3e0e68fd347449b68015ad5a2baf9e884b4e01380df2418e8bbba8", size = 46923, upload-time = "2026-05-10T04:05:06.308Z" },
 ]
 
 [[package]]
