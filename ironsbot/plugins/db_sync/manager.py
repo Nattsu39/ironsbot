@@ -1,5 +1,5 @@
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import ExitStack
 from typing import Final
 
@@ -19,6 +19,7 @@ class DatabaseManager:
 
     def __init__(self) -> None:
         self._engines: dict[str, Engine] = {}
+        self._post_load_hooks: dict[str, list[Callable[[Engine], None]]] = {}
 
     @staticmethod
     def _create_memory_engine() -> Engine:
@@ -40,6 +41,16 @@ class DatabaseManager:
         """获取指定名称的数据库引擎。"""
         return self._engines.get(name)
 
+    def register_post_load_hook(
+        self, name: str, hook: Callable[[Engine], None]
+    ) -> None:
+        """注册一个在数据库从文件加载到内存后执行的钩子。
+
+        钩子在新引擎完成 backup、替换旧引擎之前被调用，
+        接收新的内存 Engine 作为参数。
+        """
+        self._post_load_hooks.setdefault(name, []).append(hook)
+
     def load_from_file(self, name: str, file_path: str) -> None:
         """从 SQLite 文件导入全部数据到新的内存引擎，然后原子替换旧引擎。"""
         new_engine = self._create_memory_engine()
@@ -53,6 +64,14 @@ class DatabaseManager:
                 raw_conn.close()
         finally:
             source.close()
+
+        for hook in self._post_load_hooks.get(name, []):
+            try:
+                hook(new_engine)
+            except Exception:
+                logger.opt(exception=True).warning(
+                    f"数据库 '{name}' 的 post-load 钩子执行失败"
+                )
 
         old_engine = self._engines.get(name)
         self._engines[name] = new_engine
