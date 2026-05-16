@@ -5,6 +5,8 @@ from nonebot_plugin_htmlkit import template_to_pic
 from seerapi_models.element_type import TypeCombinationORM
 from sqlalchemy.orm import object_session
 
+from ironsbot.plugins.get_seer_info.render._cache import render_cache
+
 from ..depends.image import ElementTypeImageGetter
 from ..type_calc import calc_attack_table, calc_defense_table
 from ._common import TEMPLATES_PATH, to_data_uri
@@ -34,6 +36,10 @@ async def render_type_matchup(target: TypeCombinationORM) -> bytes:
 
     包含攻击效果和被攻击效果两个区域。
     """
+    cached = render_cache.get("type_matchup", str(target.id))
+    if cached is not None:
+        return cached
+
     session = cast("Session | None", object_session(target))
     assert session is not None
 
@@ -72,7 +78,7 @@ async def render_type_matchup(target: TypeCombinationORM) -> bytes:
         reverse=True,
     )
 
-    return await template_to_pic(
+    result = await template_to_pic(
         template_path=TEMPLATE_PATH,
         template_name="template.html",
         templates={
@@ -86,3 +92,5 @@ async def render_type_matchup(target: TypeCombinationORM) -> bytes:
         max_width=MAX_WIDTH,
         allow_refit=False,
     )
+    render_cache.put("type_matchup", str(target.id), result)
+    return result
