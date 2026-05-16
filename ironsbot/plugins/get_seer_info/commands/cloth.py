@@ -1,4 +1,4 @@
-from nonebot.adapters import Bot, Event
+from nonebot.adapters import Event
 from nonebot.matcher import Matcher
 from nonebot.typing import T_State
 from nonebot_plugin_saa import MessageFactory
@@ -67,7 +67,6 @@ PROMPT_MAX_ITEMS = 20
 async def handle_suit(
     matcher: Matcher,
     state: T_State,
-    bot: Bot,
     event: Event,
     suits: tuple[SuitORM, ...] = GetSuitData(),
 ) -> None:
@@ -157,9 +156,9 @@ async def _build_title_message(title: TitlePartORM) -> MessageFactory:
     msg = MessageFactory()
     msg += await TitleImageGetter.get(str(title.id))
     msg += f"【{title.name}】\n"
-    msg += f"🆔：{title.id}\n"
+    msg += f"🆔：{title.id}"
     if title.ability_desc:
-        msg += f"效果：{title.ability_desc}"
+        msg += f"\n效果：{title.ability_desc}"
     return msg
 
 
