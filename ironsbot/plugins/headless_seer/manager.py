@@ -2,7 +2,7 @@ from typing import Final
 
 from nonebot import logger
 
-from .exception import NotLoggedInError
+from .exception import DisconnectedError, NotLoggedInError
 from .game import SeerGame
 
 
@@ -17,9 +17,16 @@ class ClientManager:
         self._client: SeerGame | None = None
 
     def get_client(self) -> SeerGame:
-        """获取已登录的游戏客户端，未登录时抛出 NotLoggedInError。"""
-        if self._client is None or not self._client.is_logged_in:
+        """获取已登录的游戏客户端。
+
+        Raises:
+            NotLoggedInError: 客户端尚未登录（从未登录或已登出）。
+            DisconnectedError: 客户端曾登录但连接已断开（可能正在重连）。
+        """
+        if self._client is None or self._client._impl is None:
             raise NotLoggedInError("无头客户端尚未登录")
+        if not self._client._impl.is_connected or not self._client._is_logged_in:
+            raise DisconnectedError("无头客户端连接已断开，可能正在重连中")
         return self._client
 
     async def login(

@@ -13,6 +13,9 @@ class ClientNotInitializedError(Exception): ...
 class NotLoggedInError(Exception): ...
 
 
+class DisconnectedError(Exception): ...
+
+
 class SocketRecvError(Exception):
     def __init__(
         self,
