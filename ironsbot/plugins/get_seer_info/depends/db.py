@@ -23,11 +23,11 @@ from seerapi_models import (
     TypeCombinationORM,
 )
 from seerapi_models.build_model import BaseResModel
-from sqlalchemy import and_, or_, text
+from sqlalchemy import text
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Session as SQLModelSession
-from sqlmodel import col, func, select
+from sqlmodel import and_, col, func, or_, select
 
 from ..config import plugin_config
 from ..orm import BaseAliasORM, GemAliasORM, PetAliasORM
@@ -82,7 +82,7 @@ def _build_pinyin_fts(engine: Engine) -> None:
         for source_table, query in _PINYIN_FTS_SOURCES.items():
             rows = conn.execute(text(query)).fetchall()
             for row_id, name in rows:
-                syllables = lazy_pinyin(name)
+                syllables = lazy_pinyin(_strip_special(name))
                 full = "".join(syllables)
                 initials = "".join(s[0] for s in syllables if s)
                 conn.execute(
@@ -377,9 +377,7 @@ class PinyinResolver(Generic[_T_Model]):
         if not ids:
             return ()
 
-        objs = session.exec(
-            select(self.model).where(col(self.model.id).in_(ids))
-        ).all()
+        objs = session.exec(select(self.model).where(col(self.model.id).in_(ids))).all()
 
         if input_syllables is None:
             return objs
@@ -388,7 +386,12 @@ class PinyinResolver(Generic[_T_Model]):
             obj
             for obj in objs
             if _pinyin_syllables_contain(
-                [s.lower() for s in lazy_pinyin(getattr(obj, self.name_attr, ""))],
+                [
+                    s.lower()
+                    for s in lazy_pinyin(
+                        _strip_special(getattr(obj, self.name_attr, ""))
+                    )
+                ],
                 input_syllables,
             )
         ]
@@ -582,7 +585,7 @@ class TypeCombinationResolver:
                 session.exec(
                     select(TypeCombinationORM).where(
                         TypeCombinationORM.primary_id == tid,
-                        TypeCombinationORM.secondary_id.is_(None),  # type: ignore[union-attr]
+                        TypeCombinationORM.secondary_id is None,
                     )
                 ).all()
             )
