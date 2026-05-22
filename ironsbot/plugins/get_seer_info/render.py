@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 from typing import Any, Literal, TypedDict
 
 from nonebot import require
@@ -169,6 +170,71 @@ async def render_pet_info(pet: PetORM) -> bytes:
             "advanced_skills": advanced_skills[::-1],
             "special_skills": special_skills[::-1],
             "level_skills": level_skills,
+        },
+        max_width=1200,
+        allow_refit=False,
+    )
+
+
+async def render_share_config_card(cfg: dict, share_info: dict) -> bytes:
+    sprite_name = cfg.get("spriteName") or cfg.get("sprite_name") or "未知精灵"
+    share_title = share_info.get("title") or ""
+    avatar_url = share_info.get("avatarPath") or share_info.get("avatar_path") or ""
+
+    evs = cfg.get("evs") or {}
+    if isinstance(evs, dict):
+        ev_pairs = []
+        for k, v in evs.items():
+            try:
+                iv = int(v)
+            except Exception:
+                continue
+            if iv > 0:
+                ev_pairs.append(f"{k}:{iv}")
+        evs_text = " ".join(ev_pairs) if ev_pairs else "无"
+    else:
+        evs_text = "无"
+
+    engraving_names = cfg.get("engravingNames") or cfg.get("engraving_names") or []
+    if not isinstance(engraving_names, list):
+        engraving_names = []
+    engraving_names = [str(x) for x in engraving_names if x]
+
+    skills = cfg.get("skillGemBindings") or cfg.get("skill_gem_bindings") or []
+    skill_names: list[str] = []
+    if isinstance(skills, list):
+        for s in skills:
+            if isinstance(s, dict):
+                name = s.get("skillName") or s.get("skill_name")
+                if name:
+                    skill_names.append(str(name))
+
+    personality_name = cfg.get("personalityName") or cfg.get("personality_name") or "无"
+    trait_name = cfg.get("traitName") or cfg.get("trait_name") or "无"
+    trait_level = cfg.get("traitLevel") or cfg.get("trait_level") or ""
+    if trait_level:
+        trait_name = f"{trait_name} {trait_level}"
+
+    equip_suit = cfg.get("equipmentSuitName") or cfg.get("equipment_suit_name") or "无"
+    equip_glasses = cfg.get("equipmentGlassesName") or cfg.get("equipment_glasses_name") or "无"
+    equip_waist = cfg.get("equipmentWaistName") or cfg.get("equipment_waist_name") or "无"
+
+    return await template_to_pic(
+        template_path=TEMPLATES_PATH,
+        template_name="share_config.html",
+        templates={
+            "sprite_name": sprite_name,
+            "share_title": share_title,
+            "avatar_url": avatar_url,
+            "personality_name": personality_name,
+            "trait_name": trait_name,
+            "evs_text": evs_text,
+            "engraving_names": engraving_names,
+            "equip_suit": equip_suit,
+            "equip_glasses": equip_glasses,
+            "equip_waist": equip_waist,
+            "skill_names": skill_names,
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         },
         max_width=1200,
         allow_refit=False,

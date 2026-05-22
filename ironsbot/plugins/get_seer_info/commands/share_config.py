@@ -18,6 +18,7 @@ from ..prompt import (
     PromptItem,
     create_prompt_got_handler,
 )
+from ..render import render_share_config_card
 
 share_config_matcher = matcher_group.on_message(
     rule=startswith_or_endswith(("配置", "查询配置", "分享配置")) & no_reply()
@@ -102,6 +103,16 @@ def format_config_message(cfg: dict, share_info: dict) -> str:
     
     return msg
 
+
+async def build_share_config_message(cfg: dict, share_info: dict) -> Message:
+    try:
+        pic_bytes = await render_share_config_card(cfg, share_info)
+        msg = OneBotV11Message()
+        msg += OneBotV11MessageSegment.image(pic_bytes)
+        return msg
+    except Exception:
+        return OneBotV11Message(format_config_message(cfg, share_info))
+
 @share_config_matcher.handle()
 async def handle_share_config(
     matcher: Matcher,
@@ -120,7 +131,7 @@ async def handle_share_config(
         cfg = await get_config_detail(share["configId"])
         if not cfg:
             await matcher.finish("获取配置详情失败。")
-        await matcher.finish(format_config_message(cfg, share))
+        await matcher.finish(await build_share_config_message(cfg, share))
         
     # Multiple shares
     items = []
@@ -146,7 +157,7 @@ async def share_config_resolver(
     cfg = await get_config_detail(config_id)
     if not cfg:
         await matcher.finish("获取配置详情失败。")
-    await matcher.finish(format_config_message(cfg, share))
+    await matcher.finish(await build_share_config_message(cfg, share))
 
 SHARE_CONFIG_GOT_KEY = "share_config"
 share_config_matcher.got(SHARE_CONFIG_GOT_KEY, prompt=MessageTemplate("{prompt_message}"))(
