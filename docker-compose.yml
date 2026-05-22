@@ -1,6 +1,6 @@
 services:
   ironsbot:
-    image: ghcr.io/nattsu39/nattsu39/ironsbot:sha-7f39512
+    image: ghcr.io/crispww/seerbot:latest
     container_name: ironsbot
     depends_on:
       - napcat
