@@ -35,7 +35,7 @@ jobs:
               uses: docker/metadata-action@v4
               id: metadata
               with:
-                  images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}
+                  images: ghcr.io/${{ github.repository_owner }}/seerbot
                   tags: |
                       type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
                       type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
