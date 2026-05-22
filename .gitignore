@@ -109,6 +109,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.env
 .env.*
 !.env.example
 .venv
@@ -140,3 +141,10 @@ dmypy.json
 .pytype/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# IDE
+.idea/
+
+# Local databases / caches
+*.sqlite
+*.sqlite-journal

@@ -1,22 +1,35 @@
-version: "3"
-
 services:
-  IronsBot:
-    build: .
+  ironsbot:
+    image: ghcr.io/nattsu39/nattsu39/ironsbot:sha-7f39512
+    container_name: ironsbot
+    depends_on:
+      - napcat
     ports:
-      - "${PORT:-8080}:${PORT:-8080}"
+      - "8080:8080"
     environment:
-      ENVIRONMENT: prod
-      HOST: ${HOST:-0.0.0.0}
-      PORT: ${PORT:-8080}
-      SUPERUSERS: ${SUPERUSERS:-'[]'}
-      COMMAND_START: ${COMMAND_START:-'[""]'}
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///seerapi-data.sqlite}
-      DB_SYNC_URL: ${DB_SYNC_URL:-https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite}
-      DB_SYNC_INTERVAL_MINUTES: ${DB_SYNC_INTERVAL_MINUTES:-60}
-      DB_SYNC_PATH: ${DB_SYNC_PATH:-seerapi-data.sqlite}
-      DB_SYNC_ON_STARTUP: ${DB_SYNC_ON_STARTUP:-true}
-      MEMES_CNB_TOKEN: ${MEMES_CNB_TOKEN:-}
-      MEMES_CNB_REPO: ${MEMES_CNB_REPO:-}
+      ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN}
+      SUPERUSERS: '${SUPERUSERS:-[]}'
+      COMMAND_START: '${COMMAND_START:-[""]}'
+      SEERAPI_SYNC_URL: ${SEERAPI_SYNC_URL:-https://github.com/SeerAPI/api-data/releases/download/latest/seerapi-data.sqlite}
+      ALIAS_SYNC_URL: ${ALIAS_SYNC_URL:-https://github.com/SeerAPI/api-data/releases/download/latest/aliases-data.sqlite}
+      SEERAPI_LOCAL_PATH: ${SEERAPI_LOCAL_PATH:-seerapi-data.sqlite}
+      ALIAS_LOCAL_PATH: ${ALIAS_LOCAL_PATH:-aliases-data.sqlite}
 
     restart: always
+
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    mac_address: 02:42:ac:11:00:02
+
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID}
+      - NAPCAT_GID=${NAPCAT_GID}
+
+    ports:
+      - 6099:6099
+
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./ntqq:/app/.config/QQ

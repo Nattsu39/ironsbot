@@ -1,8 +1,15 @@
 FROM python:3.10 as requirements_stage
 
+ARG PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+ENV PIP_INDEX_URL=$PIP_INDEX_URL
+ENV PIP_DEFAULT_TIMEOUT=180
+ENV PIP_RETRIES=10
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /wheel
 
-RUN python -m pip install --user uv
+RUN python -m pip install --upgrade pip \
+  && python -m pip install --user uv
 
 COPY ./pyproject.toml \
   ./uv.lock \
@@ -10,7 +17,7 @@ COPY ./pyproject.toml \
 
 RUN python -m uv export --format requirements.txt --output-file requirements.txt --no-hashes
 
-RUN python -m pip wheel --wheel-dir=/wheel --no-cache-dir --requirement ./requirements.txt
+RUN python -m pip wheel --wheel-dir=/wheel --no-cache-dir --requirement ./requirements.txt --timeout 180 --retries 10
 
 RUN python -m uv tool run --no-cache --from nb-cli nb generate -f /tmp/bot.py
 
@@ -26,6 +33,12 @@ z=zipfile.ZipFile(io.BytesIO(data));\
 FROM python:3.10-slim
 
 WORKDIR /app
+
+ARG PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+ENV PIP_INDEX_URL=$PIP_INDEX_URL
+ENV PIP_DEFAULT_TIMEOUT=180
+ENV PIP_RETRIES=10
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 ENV TZ Asia/Shanghai
 ENV PYTHONPATH=/app

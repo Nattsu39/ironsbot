@@ -2,7 +2,6 @@
 name = "IronsBot"
 version = "0.1.0"
 description = "IronsBot"
-readme = "README.md"
 requires-python = ">=3.10, <4.0"
 dependencies = [
     "nonebot-adapter-onebot>=2.4.6",
