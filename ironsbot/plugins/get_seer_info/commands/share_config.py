@@ -1,4 +1,5 @@
 import httpx
+import re
 from nonebot.adapters import Message, MessageTemplate
 from nonebot.adapters.onebot.v11 import Message as OneBotV11Message
 from nonebot.adapters.onebot.v11 import MessageSegment as OneBotV11MessageSegment
@@ -25,10 +26,36 @@ share_config_matcher = matcher_group.on_message(
 USER_API_BASE = "http://crispww.cn:8081/api"
 SEER_API_BASE = "https://crispww.cn/api"
 
+_IGNORED_CHARS = ".·・•‧∙⋅。—\u2013-_/ "
+_IGNORED_CHARS_PATTERN = re.compile(f"[{re.escape(_IGNORED_CHARS)}]")
+
+
+def _normalize_keyword(text: str) -> str:
+    return _IGNORED_CHARS_PATTERN.sub("", (text or "").strip()).lower()
+
+
+def _filter_shares_by_sprite_name(shares: list[dict], keyword: str) -> list[dict]:
+    normalized_kw = _normalize_keyword(keyword)
+    if not normalized_kw:
+        return []
+
+    matched: list[dict] = []
+    for s in shares:
+        sprite_name = s.get("spriteName") or s.get("sprite_name")
+        if not isinstance(sprite_name, str):
+            continue
+        if normalized_kw in _normalize_keyword(sprite_name):
+            matched.append(s)
+    return matched
+
+
 async def search_shares(keyword: str) -> list[dict]:
     async with httpx.AsyncClient() as client:
         try:
-            resp = await client.get(f"{USER_API_BASE}/shares/search", params={"keyword": keyword, "size": 10})
+            resp = await client.get(
+                f"{USER_API_BASE}/shares/search",
+                params={"keyword": keyword, "page": 0, "size": 10},
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("content", [])
@@ -46,7 +73,6 @@ async def get_config_detail(config_id: str) -> dict | None:
 
 def format_config_message(cfg: dict, share_info: dict) -> str:
     msg = f"【分享配置】{cfg.get('spriteName', '未知精灵')}\n"
-    msg += f"分享者: {share_info.get('username', '未知')}\n"
     msg += f"标题: {share_info.get('title', '无')}\n"
     msg += "-" * 20 + "\n"
     
@@ -84,10 +110,10 @@ async def handle_share_config(
 ) -> None:
     if not arg:
         await matcher.finish("请输入要查询的精灵名称，例如：查询配置 盖亚")
-        
-    shares = await search_shares(arg)
+
+    shares = _filter_shares_by_sprite_name(await search_shares(arg), arg)
     if not shares:
-        await matcher.finish(f"未找到包含“{arg}”的分享配置。")
+        await matcher.finish(f"未找到精灵名包含“{arg}”的分享配置。")
         
     if len(shares) == 1:
         share = shares[0]
@@ -101,9 +127,9 @@ async def handle_share_config(
     state["shares_map"] = {}
     for share in shares:
         title = share.get("title", "无标题")
-        username = share.get("username", "未知")
+        sprite_name = share.get("spriteName") or share.get("sprite_name") or "未知精灵"
         config_id = share["configId"]
-        items.append(PromptItem(name=title, desc=f"作者: {username}", value=config_id))
+        items.append(PromptItem(name=f"{sprite_name} | {title}", desc="", value=config_id))
         state["shares_map"][config_id] = share
         
     state[PROMPT_STATE_KEY] = Prompt(
