@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ sprite_name }} 配置</title>
+    <style>
+        :root {
+            --bg1: #eef6ff;
+            --bg2: #ffffff;
+            --ink: #1f2a37;
+            --muted: #6b7280;
+            --line: #e5e7eb;
+            --tag: #eff6ff;
+            --tag-border: #bfdbfe;
+            --tag-ink: #1d4ed8;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background: linear-gradient(135deg, var(--bg1), var(--bg2));
+        }
+        .wrap {
+            width: 1100px;
+            padding: 18px;
+        }
+        .card {
+            border-radius: 16px;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+        .top {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(59,130,246,0.10), rgba(255,255,255,0.0));
+        }
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex: 0 0 auto;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .hgroup { min-width: 0; flex: 1 1 auto; }
+        .title {
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .subtitle {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            padding: 16px 18px 18px;
+        }
+        .box {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px 14px 12px;
+            background: rgba(255,255,255,0.9);
+        }
+        .box-title {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .kv {
+            display: grid;
+            grid-template-columns: 68px 1fr;
+            row-gap: 8px;
+            column-gap: 10px;
+            font-size: 13px;
+        }
+        .k { color: var(--muted); font-weight: 700; }
+        .v { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tag {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--tag-border);
+            background: var(--tag);
+            color: var(--tag-ink);
+            font-size: 12px;
+            font-weight: 700;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .skills {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .skill {
+            border: 1px solid rgba(0,0,0,0.06);
+            background: rgba(59,130,246,0.06);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .footer {
+            padding: 10px 18px 14px;
+            color: var(--muted);
+            font-size: 12px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="top">
+            <div class="avatar">
+                {% if avatar_url %}
+                <img src="{{ avatar_url }}" />
+                {% else %}
+                <div style="font-weight:900;color:#93c5fd;">SEER</div>
+                {% endif %}
+            </div>
+            <div class="hgroup">
+                <div class="title">{{ sprite_name }}</div>
+                <div class="subtitle">{{ share_title }}</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="box">
+                <div class="box-title">基础</div>
+                <div class="kv">
+                    <div class="k">性格</div><div class="v">{{ personality_name }}</div>
+                    <div class="k">特性</div><div class="v">{{ trait_name }}</div>
+                    <div class="k">学习力</div><div class="v">{{ evs_text }}</div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="box-title">装备</div>
+                <div class="kv">
+                    <div class="k">套装</div><div class="v">{{ equip_suit }}</div>
+                    <div class="k">目镜</div><div class="v">{{ equip_glasses }}</div>
+                    <div class="k">腰带</div><div class="v">{{ equip_waist }}</div>
+                </div>
+            </div>
+
+            <div class="box">
+                <div class="box-title">刻印</div>
+                {% if engraving_names and engraving_names|length > 0 %}
+                <div class="tags">
+                    {% for e in engraving_names %}
+                    <div class="tag">{{ e }}</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="color:var(--muted);font-size:13px;">无</div>
+                {% endif %}
+            </div>
+
+            <div class="box">
+                <div class="box-title">技能</div>
+                {% if skill_names and skill_names|length > 0 %}
+                <div class="skills">
+                    {% for s in skill_names %}
+                    <div class="skill">{{ s }}</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="color:var(--muted);font-size:13px;">无</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>SEERbot · 配置分享</div>
+            <div>{{ generated_at }}</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
